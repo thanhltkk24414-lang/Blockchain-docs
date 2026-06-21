@@ -55,12 +55,13 @@ Freelancer DApp — Smart Contract Platform
 
 **Admin có quyền áp dụng:**
 
-* Kích hoạt Emergency Pause — gọi setPaused(true) trong EscrowVault — tất cả giao dịch bị chặn, tiền trong escrow được bảo toàn.
+* Kích hoạt Emergency Pause — gọi setPaused(true) trong EscrowVault — tất cả giao dịch bị chặn, tiền trong escrow được bảo toàn. Admin có thể ủy quyền qua grantRole(addr, ROLE_PAUSER=1) cho đội vận hành khẩn cấp mà không chuyển full admin.
 * Giảm Reputation Score.
 * Giới hạn quyền đăng tuyển công việc.
 * Khóa tài khoản tạm thời hoặc vĩnh viễn trong trường hợp vi phạm nghiêm trọng.
-* Force resolve tranh chấp khi quorum fail — gọi adminForceResolve() (xem Điều 22.3).
-* Chuyển quyền Platform Admin on-chain — gọi transferAdmin(newAdmin) trên từng contract (ReputationStore, PlatformTreasury, JobRegistry, ArbitratorPanel, EscrowVault). Deployer là admin ban đầu; sự kiện AdminTransferred được emit để minh bạch.
+* Force resolve tranh chấp khi quorum fail — gọi adminForceResolve() (xem Điều 22.3). Có thể ủy quyền qua grantRole(addr, ROLE_FORCE_RESOLVER=2) trên EscrowVault.
+* Quản lý pool Arbitrator — grantRole(addr, ROLE_ARBITRATOR_MANAGER=1) trên ArbitratorPanel cho phép joinPool thay người khác (stake + reputation vẫn do arbitrator đáp ứng).
+* Chuyển quyền Platform Admin on-chain — gọi transferAdmin(newAdmin) trên từng contract (ReputationStore, PlatformTreasury, JobRegistry, ArbitratorPanel, EscrowVault). Deployer là admin ban đầu; sự kiện AdminTransferred được emit để minh bạch. grantRole/revokeRole chỉ admin gọi được; sự kiện RoleGranted/RoleRevoked được emit.
 
 **Các trường hợp áp dụng:**
 
