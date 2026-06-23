@@ -103,7 +103,12 @@ npm run test:api -- --with-nonce
 
 Postman **không** ký SIWE thay ví. Làm một trong hai cách:
 
-**Cách A — Console trình duyệt (MetaMask):**
+**Cách A — Trang ký trên backend (khuyến nghị):**
+
+1. Backend chạy (`npm start`) → mở http://127.0.0.1:5000/siwe-sign.html
+2. Kết nối MetaMask, lấy nonce, ký → copy message + signature vào Postman
+
+**Cách B — Console trình duyệt** (trang **https**, không `file://`):
 
 ```javascript
 import { SiweMessage } from 'https://esm.sh/siwe@3';
@@ -133,7 +138,7 @@ console.log({ message: prepared, signature });
 
 Dán `message` vào biến Postman `siweMessage`, `signature` vào `siweSignature`.
 
-**Cách B — Frontend dev:** dùng flow trong [auth-api.md](./auth-api.md), copy token vào biến `authToken`.
+**Cách C — Frontend dev:** dùng flow trong [auth-api.md](./auth-api.md), copy token vào biến `authToken`.
 
 - Request: **POST /api/auth/verify**
 - Postman lưu `authToken` tự động khi thành công

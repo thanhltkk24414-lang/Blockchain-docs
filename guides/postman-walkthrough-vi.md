@@ -275,12 +275,29 @@ REST Client / Postman / PowerShell **không thể** ký thay ví. Bạn phải t
 - **Sign-In With Ethereum** — đăng nhập bằng chữ ký ví thay mật khẩu
 - Backend phát `nonce` → bạn ký message chứa nonce → backend xác minh → trả JWT
 
-#### Cách 1 — Console trình duyệt (khuyến nghị)
+#### Cách 1 — Trang ký SIWE trên backend (khuyến nghị)
 
-1. Cài MetaMask, chuyển mạng **Sepolia**
-2. Mở trang bất kỳ (ví dụ `https://example.com` hoặc tab trống `about:blank`)
-3. Mở **DevTools** (F12) → tab **Console**
-4. Dán và chạy script sau — **sửa các giá trị** theo response nonce và `.env` backend:
+MetaMask **không** inject `window.ethereum` trên URL `file://` trong Chrome — nút ký sẽ không làm gì.
+
+1. Khởi động backend: `cd backend` → `npm start` (hoặc `npm run dev`)
+2. Mở Chrome, cài MetaMask, chuyển mạng **Sepolia**
+3. Mở: **http://127.0.0.1:5000/siwe-sign.html** (hoặc http://127.0.0.1:5000/siwe-sign)
+4. **Kết nối MetaMask** → **Lấy nonce từ API** (cần MongoDB + địa chỉ ví) hoặc dán nonce từ bước 4
+5. Kiểm tra `domain`, `uri`, `chainId` khớp `backend/.env` (`SIWE_DOMAIN`, `APP_URL`, `CHAIN_ID`)
+6. **Ký với MetaMask** → copy **message** và **signature** sang Postman / `api-tests.http`
+
+Gợi ý URL có sẵn tham số (sau khi đã có nonce):
+
+```
+http://127.0.0.1:5000/siwe-sign.html?walletAddress=0xYourAddress&nonce=PASTE_NONCE
+```
+
+#### Cách 2 — Console trình duyệt (trang https bất kỳ)
+
+Dùng khi không muốn mở trang helper. **Không** chạy trên `file://` — mở tab `https://example.com` hoặc trang https khác.
+
+1. Mở **DevTools** (F12) → tab **Console**
+2. Dán và chạy script sau — **sửa các giá trị** theo response nonce và `.env` backend:
 
 ```javascript
 // === SỬA CÁC GIÁ TRỊ NÀY ===
@@ -317,51 +334,12 @@ console.log('--- SIGNATURE (copy to Postman siweSignature) ---');
 console.log(signature);
 ```
 
-5. MetaMask hiện popup **Sign message** → xác nhận
-6. Copy hai giá trị từ console:
+3. MetaMask hiện popup **Sign message** → xác nhận
+4. Copy hai giá trị từ console:
    - Toàn bộ **message** (nhiều dòng) → REST Client: `@siweMessage` · Postman: `siweMessage`
    - **signature** (chuỗi hex `0x...`) → REST Client: `@siweSignature` · Postman: `siweSignature`
 
-#### Cách 2 — Snippet HTML local (nếu console bị chặn import)
-
-Tạo file `siwe-sign.html` trên máy:
-
-```html
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>SIWE Sign</title></head>
-<body>
-  <p>Mở file này trong Chrome, kết nối MetaMask Sepolia, điền form và ký.</p>
-  <script type="module">
-    import { SiweMessage } from 'https://esm.sh/siwe@3';
-    window.signSiwe = async () => {
-      const walletAddress = document.getElementById('addr').value;
-      const nonce = document.getElementById('nonce').value;
-      const domain = 'localhost';
-      const chainId = 11155111;
-      const uri = 'http://localhost:3000';
-      const msg = new SiweMessage({
-        domain, address: walletAddress, statement: 'Sign in to Fapex',
-        uri, version: '1', chainId, nonce,
-      });
-      const prepared = msg.prepareMessage();
-      const signature = await ethereum.request({
-        method: 'personal_sign',
-        params: [prepared, walletAddress],
-      });
-      document.getElementById('out').textContent =
-        'MESSAGE:\n' + prepared + '\n\nSIGNATURE:\n' + signature;
-    };
-  </script>
-  <label>Địa chỉ ví: <input id="addr" size="50"></label><br>
-  <label>Nonce: <input id="nonce" size="50"></label><br>
-  <button onclick="signSiwe()">Ký với MetaMask</button>
-  <pre id="out"></pre>
-</body>
-</html>
-```
-
-Mở file bằng trình duyệt → nhập địa chỉ + nonce → **Ký với MetaMask** → copy kết quả.
+> **Không dùng `file://`:** Tạo file HTML local và mở bằng `file://` sẽ không có MetaMask. Luôn dùng **Cách 1** (`http://127.0.0.1:5000/siwe-sign.html`) hoặc console trên trang **https**.
 
 #### Lưu ý khi ký SIWE
 
