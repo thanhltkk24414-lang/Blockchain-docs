@@ -135,21 +135,38 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 
 ### Bước 1: Import Collection và Environment
 
-1. Mở **Postman**
-2. Nhấn **Import** (góc trên trái)
-3. Kéo thả hoặc chọn **hai file** trong repo:
+**Cách A — Postman Desktop (khuyến nghị):**
+
+1. Tải và cài [Postman Desktop](https://www.postman.com/downloads/) (không dùng extension VS Code nếu import collection bị lỗi)
+2. Mở **Postman Desktop**
+3. Nhấn **Import** (góc trên trái hoặc **File → Import**)
+4. Kéo thả hoặc chọn **hai file** trong repo:
 
    | File | Vai trò |
    |------|---------|
    | `backend/postman/Freelance-Platform.postman_collection.json` | Danh sách request API |
    | `backend/postman/Freelance-Platform.postman_environment.json` | Biến môi trường (URL, token, ví…) |
 
-4. Sau import, sidebar trái có collection **Freelance Platform API** với các folder:
-   - `01 — Health`
-   - `02 — Auth (SIWE + JWT)`
-   - `03 — IPFS`
-   - `04 — Jobs`
-   - `05 — Arbitrator`
+5. Sau import, **sidebar trái** hiển thị collection **Freelance Platform API**:
+   - Nếu sidebar trống: nhấn biểu tượng **Collections** (hình thư mục) ở thanh dọc trái
+   - Mở rộng collection → thấy các folder:
+     - `01 - Health`
+     - `02 - Auth (SIWE + JWT)`
+     - `03 - IPFS`
+     - `04 - Jobs`
+     - `05 - Arbitrator`
+
+**Cách B — Extension Postman trong VS Code:**
+
+1. Cài extension **Postman** trong VS Code
+2. Mở panel Postman (sidebar hoặc Command Palette → `Postman: Open`)
+3. Import cả collection và environment từ `backend/postman/`
+4. Nếu collection báo **dấu chấm than đỏ** nhưng environment import OK (dấu xanh):
+   - Dùng file đã sửa `Freelance-Platform.postman_collection.json` (UUID hợp lệ, URL chuẩn v2.1)
+   - Hoặc thử `Freelance-Platform-minimal.postman_collection.json` (chỉ GET /health) để kiểm tra import
+   - Nếu vẫn lỗi → **chuyển sang Postman Desktop** (Cách A) hoặc **curl/PowerShell** (Phần E)
+
+> **Nguyên nhân lỗi import thường gặp:** `_postman_id` không đúng định dạng UUID, URL request dạng chuỗi thay vì object v2.1, hoặc script Tests dùng cú pháp ES6 (arrow function) mà extension không hỗ trợ. File collection trong repo đã được chuẩn hóa để tránh các lỗi này.
 
 ### Bước 2: Chọn Environment và cấu hình biến
 
@@ -213,7 +230,8 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 }
 ```
 
-Postman **tự lưu** `nonce`, `chainId`, `siweDomain` vào environment (script Tests).
+Postman **không tự lưu** biến môi trường trong bản collection hiện tại — copy thủ công từ response:
+- `nonce`, `chainId`, `domain` → dán vào environment (hoặc dùng script Tests nếu dùng Postman Desktop với bản cũ có script)
 
 **Nonce chỉ dùng một lần** — hết hạn sau khi verify thành công hoặc khi gọi nonce mới.
 
@@ -354,7 +372,7 @@ Body mẫu (Postman tự điền biến):
 }
 ```
 
-Script Tests **tự gán** `authToken` = `token`.
+Script Tests **không còn** trong collection — copy thủ công `token` từ response vào biến `authToken`.
 
 ### Bước 7: Kiểm tra token (tùy chọn nhưng nên làm)
 
@@ -382,7 +400,7 @@ Nếu `authToken` trống, mở environment → dán thủ công giá trị `tok
 }
 ```
 
-Biến `metadataCID` được lưu tự động — dùng khi tạo job on-chain.
+Copy `metadataCID` từ response vào biến environment thủ công.
 
 **Lỗi thường gặp:** `Không thể upload metadata` → kiểm tra `PINATA_JWT` trong `.env`.
 
@@ -474,6 +492,8 @@ Khởi động lại backend sau khi sửa `.env`.
 
 | Lỗi | Cách sửa |
 |-----|----------|
+| Collection import lỗi (VS Code extension) | Dùng Postman Desktop; hoặc import `Freelance-Platform-minimal.postman_collection.json`; hoặc test bằng curl/PowerShell (Phần E) |
+| Sidebar trống sau import | Postman Desktop: nhấn **Collections** ở thanh trái; kiểm tra workspace đang chọn đúng |
 | Request treo mãi | Đổi `baseUrl` từ `localhost` → `127.0.0.1` |
 | 401 trên route có Bearer | Kiểm tra `authToken`; chạy lại verify |
 
@@ -487,11 +507,99 @@ Khởi động lại backend sau khi sửa `.env`.
 
 ## Phần E — Kiểm tra nhanh không cần Postman
 
+### Script npm (khuyến nghị)
+
 ```bash
 cd backend
 npm run test:api              # GET /health (server phải chạy)
 npm run test:api -- --with-nonce   # health + nonce (cần MongoDB)
 npm run test:auth               # load module JWT/SIWE
+```
+
+### curl / PowerShell (từng bước thay Postman)
+
+Đặt biến (PowerShell):
+
+```powershell
+$baseUrl = "http://127.0.0.1:5000"
+$wallet = "0xYourWalletAddressHere"
+```
+
+**Bước 1 — Health**
+
+```powershell
+Invoke-RestMethod -Uri "$baseUrl/health"
+```
+
+```bash
+curl -s "$baseUrl/health"
+```
+
+**Bước 2 — Nonce** (cần MongoDB)
+
+```powershell
+$nonceBody = @{ walletAddress = $wallet } | ConvertTo-Json
+Invoke-RestMethod -Uri "$baseUrl/api/auth/nonce" -Method POST -Body $nonceBody -ContentType "application/json"
+```
+
+```bash
+curl -s -X POST "$baseUrl/api/auth/nonce" -H "Content-Type: application/json" -d "{\"walletAddress\":\"$wallet\"}"
+```
+
+Lưu `nonce`, `domain`, `chainId` từ response → ký SIWE (Phần C, Bước 5).
+
+**Bước 3 — Verify** (sau khi có `siweMessage` và `siweSignature`)
+
+```powershell
+$verifyBody = @{ message = $siweMessage; signature = $siweSignature } | ConvertTo-Json
+$r = Invoke-RestMethod -Uri "$baseUrl/api/auth/verify" -Method POST -Body $verifyBody -ContentType "application/json"
+$token = $r.token
+```
+
+```bash
+curl -s -X POST "$baseUrl/api/auth/verify" -H "Content-Type: application/json" \
+  -d "{\"message\":\"...\",\"signature\":\"0x...\"}"
+```
+
+**Bước 4 — Me** (kiểm tra JWT)
+
+```powershell
+Invoke-RestMethod -Uri "$baseUrl/api/auth/me" -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Bước 5 — IPFS metadata** (cần Pinata + token)
+
+```powershell
+$metaBody = Get-Content -Raw -Path metadata-sample.json   # hoặc tạo JSON inline
+Invoke-RestMethod -Uri "$baseUrl/api/ipfs/upload/metadata" -Method POST -Body $metaBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Bước 6 — GET jobs**
+
+```powershell
+Invoke-RestMethod -Uri "$baseUrl/api/jobs?page=1&limit=20"
+```
+
+**Bước 7 — POST job** (cần token, MongoDB, Pinata, RPC)
+
+```powershell
+$jobBody = @{
+  title = "Smart Contract Audit"
+  description = "Audit Solidity escrow contracts on Sepolia testnet."
+  category = "development"
+  contractValue = 100
+  duration = 604800
+  skills = @("Solidity", "Security")
+  deliverables = "PDF audit report."
+  acceptanceCriteria = "All critical issues documented."
+} | ConvertTo-Json
+Invoke-RestMethod -Uri "$baseUrl/api/jobs" -Method POST -Body $jobBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Bước 8 — Arbitrator status**
+
+```powershell
+Invoke-RestMethod -Uri "$baseUrl/api/arbitrator/$wallet/status"
 ```
 
 ---
