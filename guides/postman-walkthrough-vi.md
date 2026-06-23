@@ -1,8 +1,24 @@
-# Hướng dẫn chi tiết test API ShareVolt bằng Postman (tiếng Việt)
+# Hướng dẫn chi tiết test API ShareVolt (tiếng Việt)
 
-Tài liệu này hướng dẫn **từng bước** luồng kiểm thử backend ShareVolt: khởi động môi trường → import Postman → đăng nhập ví (SIWE) → upload IPFS → tạo job → xem danh sách job.
+Tài liệu này hướng dẫn **từng bước** luồng kiểm thử backend ShareVolt: khởi động môi trường → gọi API → đăng nhập ví (SIWE) → upload IPFS → tạo job → xem danh sách job.
 
 > **Mục tiêu:** Sau khi làm theo guide, bạn có thể gọi API thành công mà hiểu **tại sao** mỗi bước cần thiết.
+
+---
+
+## ⚠️ KHÔNG dùng extension Postman trong VS Code / Cursor
+
+Extension **Postman** trên VS Code/Cursor **thường báo lỗi** `Could not import collection` với project này — kể cả file collection tối giản. **Đừng mất thời gian sửa import.**
+
+**Dùng một trong ba cách sau (theo thứ tự khuyến nghị):**
+
+| Cách | File / công cụ | Ai nên dùng |
+|------|----------------|-------------|
+| **1. REST Client** (khuyến nghị trong Cursor) | `backend/api-tests.http` + extension [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) | Làm việc trong VS Code/Cursor, không cần Postman |
+| **2. Postman Desktop** | `backend/postman/*.json` | Quen giao diện Postman, import ổn định |
+| **3. PowerShell script** | `backend/scripts/test-api-flow.ps1` | Windows, chạy cả luồng tương tác |
+
+> **REST Client:** Cài extension → mở `backend/api-tests.http` → sửa biến `@baseUrl`, `@walletAddress` ở đầu file → nhấn **Send Request** phía trên mỗi khối `###`.
 
 ---
 
@@ -21,9 +37,8 @@ flowchart LR
 
 | Bước | API | Cần gì |
 |------|-----|--------|
-| 0 | Chuẩn bị | Docker MongoDB, backend chạy, Postman import |
-| 1 | Import collection | File JSON trong `backend/postman/` |
-| 2 | Cấu hình biến | `baseUrl`, `walletAddress` |
+| 0 | Chuẩn bị | Docker MongoDB, backend chạy, chọn công cụ test (REST Client / Postman Desktop / PowerShell) |
+| 1 | Cấu hình biến | `baseUrl`, `walletAddress` (trong `api-tests.http` hoặc Postman environment) |
 | 3 | `GET /health` | Không cần DB (nhưng nên có MongoDB) |
 | 4 | `POST /api/auth/nonce` | MongoDB |
 | 5 | Ký SIWE (thủ công) | MetaMask + Sepolia |
@@ -43,7 +58,7 @@ flowchart LR
 |----------|----------|
 | [Node.js](https://nodejs.org/) (LTS) | Chạy backend |
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Chạy MongoDB local |
-| [Postman](https://www.postman.com/downloads/) | Gọi API |
+| Extension **REST Client** (`humao.rest-client`) hoặc [Postman Desktop](https://www.postman.com/downloads/) | Gọi API |
 | [MetaMask](https://metamask.io/) | Ví Ethereum, ký SIWE |
 | Tài khoản Sepolia | Ví có ETH testnet (faucet Sepolia) |
 
@@ -131,67 +146,81 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 
 ---
 
-## Phần B — Import Postman
+## Phần B — Chọn công cụ gọi API
 
-### Bước 1: Import Collection và Environment
+### Cách 1 — REST Client trong VS Code / Cursor (khuyến nghị)
 
-**Cách A — Postman Desktop (khuyến nghị):**
+1. Mở **Extensions** (`Ctrl+Shift+X`)
+2. Tìm và cài **REST Client** (tác giả: **Huachao Mao**, ID: `humao.rest-client`)
+3. Mở file `backend/api-tests.http` trong editor
+4. Sửa các biến ở **đầu file**:
 
-1. Tải và cài [Postman Desktop](https://www.postman.com/downloads/) (không dùng extension VS Code nếu import collection bị lỗi)
-2. Mở **Postman Desktop**
-3. Nhấn **Import** (góc trên trái hoặc **File → Import**)
-4. Kéo thả hoặc chọn **hai file** trong repo:
+| Biến | Giá trị | Giải thích |
+|------|---------|------------|
+| `@baseUrl` | `http://127.0.0.1:5000` | URL backend (khớp `PORT` trong `.env`) |
+| `@walletAddress` | `0xABC...` | Địa chỉ ví MetaMask Sepolia |
+| `@authToken` | *(để trống ban đầu)* | JWT sau bước verify — dán vào đây |
+| `@siweMessage` | *(sau khi ký MetaMask)* | Chuỗi message SIWE đầy đủ |
+| `@siweSignature` | *(sau khi ký MetaMask)* | Chữ ký hex `0x...` |
+
+5. Cuộn tới request cần gọi (ví dụ `### 01 — GET /health`)
+6. Nhấn link **Send Request** xuất hiện **ngay phía trên** dòng `GET` hoặc `POST`
+7. Kết quả hiện ở panel bên phải (hoặc tab mới tùy cấu hình)
+
+**Thứ tự request trong file:** Health → Nonce → Verify → Me → IPFS metadata → POST job → GET jobs.
+
+> REST Client **không có sidebar** như Postman — mọi request nằm trong một file `.http`. Đó là cách chuẩn của VS Code.
+
+### Cách 2 — Postman Desktop
+
+1. Tải và cài [Postman Desktop](https://www.postman.com/downloads/)
+2. Mở **Postman Desktop** (không phải extension VS Code)
+3. Nhấn **Import** → chọn **hai file**:
 
    | File | Vai trò |
    |------|---------|
    | `backend/postman/Freelance-Platform.postman_collection.json` | Danh sách request API |
-   | `backend/postman/Freelance-Platform.postman_environment.json` | Biến môi trường (URL, token, ví…) |
+   | `backend/postman/Freelance-Platform.postman_environment.json` | Biến môi trường |
 
-5. Sau import, **sidebar trái** hiển thị collection **Freelance Platform API**:
-   - Nếu sidebar trống: nhấn biểu tượng **Collections** (hình thư mục) ở thanh dọc trái
-   - Mở rộng collection → thấy các folder:
-     - `01 - Health`
-     - `02 - Auth (SIWE + JWT)`
-     - `03 - IPFS`
-     - `04 - Jobs`
-     - `05 - Arbitrator`
+4. Chọn environment **Freelance Platform — Local** (góc trên phải)
+5. Sửa biến `baseUrl`, `walletAddress` trong environment
 
-**Cách B — Extension Postman trong VS Code:**
+### Cách 3 — PowerShell script (Windows)
 
-1. Cài extension **Postman** trong VS Code
-2. Mở panel Postman (sidebar hoặc Command Palette → `Postman: Open`)
-3. Import cả collection và environment từ `backend/postman/`
-4. Nếu collection báo **dấu chấm than đỏ** nhưng environment import OK (dấu xanh):
-   - Dùng file đã sửa `Freelance-Platform.postman_collection.json` (UUID hợp lệ, URL chuẩn v2.1)
-   - Hoặc thử `Freelance-Platform-minimal.postman_collection.json` (chỉ GET /health) để kiểm tra import
-   - Nếu vẫn lỗi → **chuyển sang Postman Desktop** (Cách A) hoặc **curl/PowerShell** (Phần E)
+```powershell
+cd backend
+.\scripts\test-api-flow.ps1
+```
 
-> **Nguyên nhân lỗi import thường gặp:** `_postman_id` không đúng định dạng UUID, URL request dạng chuỗi thay vì object v2.1, hoặc script Tests dùng cú pháp ES6 (arrow function) mà extension không hỗ trợ. File collection trong repo đã được chuẩn hóa để tránh các lỗi này.
+Script sẽ: health → nonce → **hướng dẫn ký SIWE** → verify → me → IPFS → POST job → GET jobs.
 
-### Bước 2: Chọn Environment và cấu hình biến
+Chạy lại khi đã có JWT:
 
-1. Góc trên phải Postman, chọn environment **Freelance Platform — Local**
-2. Nhấn biểu tượng **mắt** → **Edit** để sửa biến:
+```powershell
+.\scripts\test-api-flow.ps1 -WalletAddress 0xYour... -AuthToken eyJ...
+```
 
-| Biến | Giá trị | Giải thích |
-|------|---------|------------|
-| `baseUrl` | `http://127.0.0.1:5000` | URL backend (khớp `PORT` trong `.env`) |
-| `walletAddress` | `0xABC...` | Địa chỉ ví MetaMask Sepolia của bạn |
-| `authToken` | *(để trống ban đầu)* | JWT sau bước verify |
-| `siweMessage` | *(để trống)* | Chuỗi message SIWE đã ký |
-| `siweSignature` | *(để trống)* | Chữ ký hex từ MetaMask |
+Bỏ qua bước tốn Pinata/RPC:
 
-3. **Save** environment
+```powershell
+.\scripts\test-api-flow.ps1 -SkipIpfs -SkipJob
+```
+
+### ❌ Không dùng: Extension Postman trong VS Code / Cursor
+
+Extension Postman sidebar trong editor **bị lỗi import** (`Could not import collection`) với collection của project này. File `Freelance-Platform-minimal.postman_collection.json` (định dạng v2.0) chỉ để thử trên **Postman Desktop** nếu cần — **không** dùng để debug extension VS Code.
 
 ---
 
 ## Phần C — Chạy từng request
 
+> Áp dụng cho **REST Client** (`api-tests.http`), **Postman Desktop**, hoặc **PowerShell** — thao tác gửi request khác nhau nhưng body/response giống nhau.
+
 ### Bước 3: Health Check
 
-1. Mở folder **01 — Health**
-2. Chọn **GET /health**
-3. Nhấn **Send**
+**REST Client:** nhấn **Send Request** trên khối `### 01 — GET /health`
+
+**Postman Desktop:** folder **01 — Health** → **GET /health** → **Send**
 
 **Response mong đợi (200):**
 
@@ -214,9 +243,9 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 
 ### Bước 4: Auth — Lấy nonce
 
-1. Folder **02 — Auth** → **POST /api/auth/nonce**
-2. Body đã có sẵn: `{ "walletAddress": "{{walletAddress}}" }`
-3. Nhấn **Send**
+**REST Client:** khối `### 02 — POST /api/auth/nonce` → **Send Request** (đảm bảo `@walletAddress` đã sửa)
+
+**Postman:** folder **02 — Auth** → **POST /api/auth/nonce** → **Send**
 
 **Response mong đợi (200):**
 
@@ -230,8 +259,8 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 }
 ```
 
-Postman **không tự lưu** biến môi trường trong bản collection hiện tại — copy thủ công từ response:
-- `nonce`, `chainId`, `domain` → dán vào environment (hoặc dùng script Tests nếu dùng Postman Desktop với bản cũ có script)
+Copy thủ công từ response:
+- `nonce`, `chainId`, `domain` → dùng khi ký SIWE (bước 5); REST Client: dán vào `@siweMessage` / `@siweSignature` sau khi ký
 
 **Nonce chỉ dùng một lần** — hết hạn sau khi verify thành công hoặc khi gọi nonce mới.
 
@@ -239,7 +268,7 @@ Postman **không tự lưu** biến môi trường trong bản collection hiện
 
 ### Bước 5: Ký SIWE bằng MetaMask (bước thủ công — quan trọng)
 
-Postman **không thể** ký thay ví. Bạn phải tạo message SIWE (chuẩn EIP-4361) và ký bằng MetaMask.
+REST Client / Postman / PowerShell **không thể** ký thay ví. Bạn phải tạo message SIWE (chuẩn EIP-4361) và ký bằng MetaMask.
 
 #### SIWE là gì?
 
@@ -290,8 +319,8 @@ console.log(signature);
 
 5. MetaMask hiện popup **Sign message** → xác nhận
 6. Copy hai giá trị từ console:
-   - Toàn bộ **message** (nhiều dòng) → dán vào biến Postman `siweMessage`
-   - **signature** (chuỗi hex `0x...`) → dán vào `siweSignature`
+   - Toàn bộ **message** (nhiều dòng) → REST Client: `@siweMessage` · Postman: `siweMessage`
+   - **signature** (chuỗi hex `0x...`) → REST Client: `@siweSignature` · Postman: `siweSignature`
 
 #### Cách 2 — Snippet HTML local (nếu console bị chặn import)
 
@@ -488,14 +517,15 @@ Khởi động lại backend sau khi sửa `.env`.
 | `Invalid or expired nonce` | Chạy lại POST nonce, ký lại message mới |
 | `JWT_SECRET is not defined` | Thêm `JWT_SECRET` vào `.env` |
 
-### Postman / Windows
+### Công cụ test / Windows
 
 | Lỗi | Cách sửa |
 |-----|----------|
-| Collection import lỗi (VS Code extension) | Dùng Postman Desktop; hoặc import `Freelance-Platform-minimal.postman_collection.json`; hoặc test bằng curl/PowerShell (Phần E) |
-| Sidebar trống sau import | Postman Desktop: nhấn **Collections** ở thanh trái; kiểm tra workspace đang chọn đúng |
-| Request treo mãi | Đổi `baseUrl` từ `localhost` → `127.0.0.1` |
-| 401 trên route có Bearer | Kiểm tra `authToken`; chạy lại verify |
+| `Could not import collection` (extension Postman VS Code) | **Bỏ extension Postman** — dùng REST Client (`api-tests.http`) hoặc Postman Desktop |
+| Không thấy nút Send trong Cursor | Cài extension REST Client (`humao.rest-client`); mở file `.http` không phải `.json` |
+| Sidebar Postman trống | Chỉ áp dụng Postman Desktop: nhấn **Collections** ở thanh trái |
+| Request treo mãi | Đổi `baseUrl` / `@baseUrl` từ `localhost` → `127.0.0.1` |
+| 401 trên route có Bearer | Kiểm tra `@authToken` / `authToken`; chạy lại verify |
 
 ### Pinata / IPFS
 
@@ -505,9 +535,24 @@ Khởi động lại backend sau khi sửa `.env`.
 
 ---
 
-## Phần E — Kiểm tra nhanh không cần Postman
+## Phần E — Kiểm tra nhanh (không cần Postman)
 
-### Script npm (khuyến nghị)
+### REST Client (file có sẵn)
+
+```text
+backend/api-tests.http
+```
+
+Cài extension REST Client → mở file → Send Request từng khối.
+
+### PowerShell script (luồng đầy đủ)
+
+```powershell
+cd backend
+.\scripts\test-api-flow.ps1
+```
+
+### Script npm (smoke test)
 
 ```bash
 cd backend
@@ -611,8 +656,8 @@ Invoke-RestMethod -Uri "$baseUrl/api/arbitrator/$wallet/status"
 - [ ] `backend/.env` đã điền: MongoDB, JWT, Pinata, RPC
 - [ ] `ENABLE_EVENT_INDEXER=false` (khi test local)
 - [ ] `npm start` → Server port 5000
-- [ ] Postman: import collection + environment
-- [ ] `baseUrl` = `http://127.0.0.1:5000`, `walletAddress` = ví Sepolia
+- [ ] Chọn công cụ: REST Client (`api-tests.http`) **hoặc** Postman Desktop **hoặc** `test-api-flow.ps1`
+- [ ] `baseUrl` / `@baseUrl` = `http://127.0.0.1:5000`, `walletAddress` = ví Sepolia
 - [ ] Health → nonce → ký SIWE MetaMask → verify → `authToken`
 - [ ] IPFS upload → POST job → GET jobs
 
