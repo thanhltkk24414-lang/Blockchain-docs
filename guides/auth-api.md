@@ -87,4 +87,7 @@ Public: `GET /health`, `GET /api/jobs`, `GET /api/jobs/:id`
 ```bash
 cd backend
 npm run test:auth
+npm run test:api      # server running; health only
 ```
+
+Postman flow (Vietnamese): [postman-testing.md](./postman-testing.md)
