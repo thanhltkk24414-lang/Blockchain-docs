@@ -14,6 +14,30 @@ Kiểm thử luồng backend ShareVolt: **health → đăng nhập SIWE → uplo
 
 Xem thêm: [auth-api.md](./auth-api.md).
 
+## Khởi động MongoDB (Windows)
+
+API `/health` và `/api/arbitrator/*` chạy **không cần** MongoDB. Các route auth, jobs và event indexer cần `MONGODB_URI` hợp lệ.
+
+**Docker (khuyến nghị):**
+
+```bash
+cd backend
+npm run docker:mongo
+# hoặc: docker run -d -p 27017:27017 --name mongo mongo:7
+```
+
+Trong `backend/.env`:
+
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/freelance-platform
+```
+
+Dùng `127.0.0.1` thay vì `localhost` — tránh lỗi `ECONNREFUSED ::1:27017` trên Windows.
+
+**MongoDB Atlas (free tier):** tạo cluster tại [mongodb.com/atlas](https://www.mongodb.com/atlas), lấy connection string và đặt vào `MONGODB_URI` (xem `backend/.env.example`).
+
+Nếu MongoDB chưa chạy, server vẫn khởi động và ghi cảnh báo; background services (indexer, listener, cron) được bỏ qua — không còn lỗi `buffering timed out`.
+
 ## Khởi động server
 
 ```bash
