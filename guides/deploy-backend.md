@@ -221,7 +221,7 @@ Tạo key: [app.pinata.cloud](https://app.pinata.cloud) → **Developers → API
 | `INDEXER_POLL_CRON` | `0 */2 * * * *` | Cron poll mỗi 2 phút |
 | `INDEXER_RPC_DELAY_MS` | `500` | Delay giữa RPC calls |
 | `INDEXER_PRIVATE_KEY` | *(trống)* | Ví Sepolia để indexer/cron gửi tx on-chain |
-| `SEPOLIA_WSS_URL` | *(trống)* | WebSocket RPC cho realtime listener |
+| `SEPOLIA_WSS_URL` | *(trống)* | WebSocket RPC cho realtime listener (chain → DB → Socket.io) |
 | `SEPOLIA_RPC_URL` | — | Alias của `RPC_URL` (backend chấp nhận cả hai) |
 | `IPFS_API_KEY` / `IPFS_API_SECRET` | — | Alias legacy của Pinata key pair |
 
@@ -468,6 +468,42 @@ Authorization: Bearer <token>
 - [ ] `POST /api/ipfs/upload/metadata` (cần JWT + Pinata) — nếu test full flow
 - [ ] Log không spam RPC rate limit (hoặc đã set `ENABLE_EVENT_INDEXER=false`)
 
+### 7.5 — WebSocket notifications (Socket.io)
+
+Backend phát realtime khi indexer hoặc realtime listener (`SEPOLIA_WSS_URL`) đồng bộ job/escrow từ chain.
+
+**Health:** `GET /health` trả thêm `websocket: { enabled: true, path: "/socket.io", auth: "JWT ..." }`.
+
+**Kết nối (sau khi có JWT từ `POST /api/auth/verify`):**
+
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('https://YOUR_RAILWAY_URL', {
+  path: '/socket.io',
+  auth: { token: '<JWT>' },
+  transports: ['websocket', 'polling'],
+});
+
+socket.on('connected', (d) => console.log(d.walletAddress));
+socket.on('job:updated', (p) => console.log(p.eventType, p.onchainJobId, p.status));
+socket.emit('subscribe:job', 1); // optional
+```
+
+| Server → client | Khi nào |
+|-----------------|---------|
+| `connected` | JWT hợp lệ |
+| `job:updated` | Mọi thay đổi job/escrow |
+| `escrow:deposited` / `escrow:released` / `escrow:dispute_raised` | EscrowVault events |
+| `job:created` / `job:status_updated` / `job:freelancer_assigned` | JobRegistry events |
+| `dispute:opened` / `dispute:finalized` | ArbitratorPanel events |
+
+**Client → server:** `subscribe:job`, `unsubscribe:job` (truyền `onchainJobId`).
+
+Railway/Render hỗ trợ WebSocket trên cùng cổng HTTPS — không cần biến env riêng. CORS Socket.io dùng `ALLOWED_ORIGINS` (giống REST).
+
+Test local: `npm run test:socket` (unit), `npm run test:socket:integration` (cần `npm start` + MongoDB).
+
 ---
 
 ## 8. Lỗi thường gặp và cách sửa
@@ -541,6 +577,75 @@ Tùy chọn thêm: tăng `INDEXER_RPC_DELAY_MS=2000`, nâng cấp Infura, hoặc
 ### 8.8 — `RPC_URL or SEPOLIA_RPC_URL is not defined`
 
 Thêm `RPC_URL` trong Variables → redeploy.
+
+### 8.9 — Railway không thấy repo `thanhltkk24414-lang/blockchain-backend` (chỉ hiện `Levianth146/*`)
+
+**Triệu chứng:** Vào **New Project → Deploy from GitHub repo**, dropdown chỉ liệt kê repo thuộc tài khoản `Levianth146`, không có `thanhltkk24414-lang/blockchain-backend`.
+
+**Repo vẫn tồn tại và deploy được:** [thanhltkk24414-lang/blockchain-backend](https://github.com/thanhltkk24414-lang/blockchain-backend) là repo **public**, nhánh mặc định **`main`** (có thêm `dev`, `develop`, …). Vấn đề **không** phải repo thiếu hay private — mà là **quyền GitHub App của Railway**.
+
+**Nguyên nhân:**
+
+| Nguyên nhân | Giải thích |
+|-------------|------------|
+| **GitHub App chưa cấp quyền** | Railway dùng GitHub App riêng. App chỉ thấy repo bạn **chọn** trong *Repository access* — mặc định thường chỉ repo `Levianth146`. |
+| **Sai tài khoản GitHub** | Railway đang liên kết GitHub user `Levianth146`, trong khi repo nằm ở user **`thanhltkk24414-lang`** (hai account khác nhau). |
+| **Chưa grant org/user** | Nếu repo thuộc org/user khác, phải bật quyền cho **đúng** owner trong màn Configure Railway App. |
+
+#### Cách A — Cấp quyền Railway GitHub App (khuyến nghị)
+
+1. Đăng nhập GitHub bằng account **`thanhltkk24414-lang`** (account sở hữu repo).
+2. Mở: [github.com/settings/installations](https://github.com/settings/installations) → tìm **Railway** → **Configure**.
+   - Hoặc: **Settings** → **Applications** → **Installed GitHub Apps** → **Railway** → **Configure**.
+3. **Repository access:**
+   - Chọn **All repositories**, **hoặc**
+   - **Only select repositories** → thêm **`blockchain-backend`** (owner `thanhltkk24414-lang`).
+4. **Save**.
+5. Trên Railway: [railway.com/account](https://railway.com/account) → **Connections** → **GitHub** → **Disconnect** (nếu đang link `Levianth146`) → **Connect** lại bằng **`thanhltkk24414-lang`**.
+6. **New Project** → **Deploy from GitHub repo** → chọn **`thanhltkk24414-lang/blockchain-backend`** → branch **`main`**.
+
+**Clicks trên Railway (chi tiết):**
+
+1. [railway.app](https://railway.app) → **New** (hoặc **New Project**).
+2. **Deploy from GitHub repo**.
+3. Nếu không thấy repo: bấm **Configure GitHub App** / **Adjust GitHub App Permissions** (link nhỏ dưới ô tìm repo).
+4. Trình duyệt chuyển sang GitHub → chọn account **`thanhltkk24414-lang`** → tick repo **`blockchain-backend`** → **Save**.
+5. Quay lại Railway → refresh trang → tìm `blockchain-backend`.
+
+> **Lưu ý:** Nếu bạn chỉ có quyền trên `Levianth146` mà không đăng nhập được `thanhltkk24414-lang`, nhờ owner account `thanhltkk24414-lang` làm bước 1–4, hoặc thêm bạn làm collaborator rồi cấp quyền App.
+
+#### Cách B — Fork sang `Levianth146` rồi deploy fork
+
+1. Đăng nhập GitHub `Levianth146` → mở repo gốc → **Fork**.
+2. Railway → **Deploy from GitHub repo** → chọn **`Levianth146/blockchain-backend`** (fork) → branch **`main`**.
+
+| Ưu | Nhược |
+|----|-------|
+| Khớp account Railway/GitHub hiện tại, setup nhanh | Push lên fork ≠ push lên repo chính; cần sync/PR nếu team dùng `thanhltkk24414-lang` |
+| Không cần đổi GitHub account trên Railway | Auto-deploy từ `main` gốc cần webhook trên fork |
+
+#### Cách C — Deploy không qua GitHub (Railway CLI)
+
+Dùng khi không muốn/không thể cấp GitHub App. Clone repo local (hoặc dùng thư mục backend), rồi:
+
+```powershell
+npm i -g @railway/cli
+railway login
+cd path\to\blockchain-backend
+railway init          # tạo project + service mới
+railway up            # build & deploy từ Dockerfile local
+```
+
+Sau đó cấu hình **Variables** trên dashboard như mục 5.3. Nhược: **không** auto-deploy khi push GitHub — phải chạy `railway up` hoặc setup GitHub sau.
+
+**Empty Project (không CLI):** **New Project** → **Empty Project** → trong service chọn deploy từ CLI (`railway up`) hoặc Docker image; không có upload Dockerfile trực tiếp trên UI.
+
+#### Checklist sau khi sửa
+
+- [ ] GitHub → Railway App → **Repository access** có `thanhltkk24414-lang/blockchain-backend`
+- [ ] Railway account → GitHub connection trùng account sở hữu repo (hoặc dùng fork `Levianth146`)
+- [ ] Dropdown Railway hiện repo → chọn branch **`main`**
+- [ ] Deploy thành công → tiếp tục mục 5.3–5.6
 
 ---
 
