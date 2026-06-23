@@ -1,8 +1,8 @@
-﻿# ShareVolt Docs
+﻿# Fapex Docs
 
 ## Legal
 
-- [Điều khoản hợp đồng — Freelancer DApp](legal/freelance-terms.md) — contract terms (Vietnamese)
+- [Điều khoản hợp đồng — Fapex](legal/freelance-terms.md) — contract terms (Vietnamese)
 
 ## Guides
 

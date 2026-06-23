@@ -1,6 +1,6 @@
-# Hướng dẫn chi tiết test API ShareVolt (tiếng Việt)
+# Hướng dẫn chi tiết test API Fapex (tiếng Việt)
 
-Tài liệu này hướng dẫn **từng bước** luồng kiểm thử backend ShareVolt: khởi động môi trường → gọi API → đăng nhập ví (SIWE) → upload IPFS → tạo job → xem danh sách job.
+Tài liệu này hướng dẫn **từng bước** luồng kiểm thử backend Fapex: khởi động môi trường → gọi API → đăng nhập ví (SIWE) → upload IPFS → tạo job → xem danh sách job.
 
 > **Mục tiêu:** Sau khi làm theo guide, bạn có thể gọi API thành công mà hiểu **tại sao** mỗi bước cần thiết.
 
@@ -179,10 +179,10 @@ Event indexer disabled (ENABLE_EVENT_INDEXER=false)
 
    | File | Vai trò |
    |------|---------|
-   | `backend/postman/Freelance-Platform.postman_collection.json` | Danh sách request API |
-   | `backend/postman/Freelance-Platform.postman_environment.json` | Biến môi trường |
+   | `backend/postman/Fapex.postman_collection.json` | Danh sách request API |
+   | `backend/postman/Fapex-Local.postman_environment.json` | Biến môi trường |
 
-4. Chọn environment **Freelance Platform — Local** (góc trên phải)
+4. Chọn environment **Fapex — Local** (góc trên phải)
 5. Sửa biến `baseUrl`, `walletAddress` trong environment
 
 ### Cách 3 — PowerShell script (Windows)
@@ -208,7 +208,7 @@ Bỏ qua bước tốn Pinata/RPC:
 
 ### ❌ Không dùng: Extension Postman trong VS Code / Cursor
 
-Extension Postman sidebar trong editor **bị lỗi import** (`Could not import collection`) với collection của project này. File `Freelance-Platform-minimal.postman_collection.json` (định dạng v2.0) chỉ để thử trên **Postman Desktop** nếu cần — **không** dùng để debug extension VS Code.
+Extension Postman sidebar trong editor **bị lỗi import** (`Could not import collection`) với collection của project này. File `Fapex-minimal.postman_collection.json` (định dạng v2.0) chỉ để thử trên **Postman Desktop** nếu cần — **không** dùng để debug extension VS Code.
 
 ---
 
@@ -289,7 +289,7 @@ const nonce = 'PASTE_NONCE_FROM_STEP_4';      // từ POST /api/auth/nonce
 const domain = 'localhost';                    // khớp SIWE_DOMAIN trong backend/.env
 const chainId = 11155111;                      // khớp CHAIN_ID
 const uri = 'http://localhost:3000';           // khớp APP_URL trong backend/.env
-const statement = 'Sign in to ShareVolt';
+const statement = 'Sign in to Fapex';
 
 // === KÝ SIWE ===
 const { SiweMessage } = await import('https://esm.sh/siwe@3');
@@ -341,7 +341,7 @@ Tạo file `siwe-sign.html` trên máy:
       const chainId = 11155111;
       const uri = 'http://localhost:3000';
       const msg = new SiweMessage({
-        domain, address: walletAddress, statement: 'Sign in to ShareVolt',
+        domain, address: walletAddress, statement: 'Sign in to Fapex',
         uri, version: '1', chainId, nonce,
       });
       const prepared = msg.prepareMessage();

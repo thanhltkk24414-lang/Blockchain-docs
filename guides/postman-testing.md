@@ -1,6 +1,6 @@
 # Hướng dẫn test API bằng Postman
 
-Kiểm thử luồng backend ShareVolt: **health → đăng nhập SIWE → upload IPFS → tạo job**.
+Kiểm thử luồng backend Fapex: **health → đăng nhập SIWE → upload IPFS → tạo job**.
 
 > **Hướng dẫn chi tiết từng bước (tiếng Việt):** xem [postman-walkthrough-vi.md](./postman-walkthrough-vi.md) — gồm cách ký SIWE MetaMask, checklist, và troubleshooting đầy đủ.
 
@@ -78,9 +78,9 @@ npm run test:api -- --with-nonce
 
 1. Mở Postman → **Import**
 2. Chọn hai file trong repo backend:
-   - `backend/postman/Freelance-Platform.postman_collection.json`
-   - `backend/postman/Freelance-Platform.postman_environment.json`
-3. Chọn environment **Freelance Platform — Local**
+   - `backend/postman/Fapex.postman_collection.json`
+   - `backend/postman/Fapex-Local.postman_environment.json`
+3. Chọn environment **Fapex — Local**
 4. Sửa biến `walletAddress` thành địa chỉ ví Sepolia của bạn
 5. Giữ `baseUrl` = `http://127.0.0.1:5000` (hoặc cổng bạn cấu hình)
 
@@ -117,7 +117,7 @@ const uri = 'http://localhost:3000'; // khớp APP_URL trong backend/.env
 const message = new SiweMessage({
   domain,
   address: walletAddress,
-  statement: 'Sign in to ShareVolt',
+  statement: 'Sign in to Fapex',
   uri,
   version: '1',
   chainId,
