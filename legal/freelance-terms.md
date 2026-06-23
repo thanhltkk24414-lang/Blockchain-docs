@@ -1,6 +1,6 @@
 ﻿**ĐIỀU KHOẢN HỢP ĐỒNG**
 
-Freelancer DApp — Smart Contract Platform
+Fapex — Web3 Freelance Platform
 
 # **PHẦN I: ĐIỀU KHOẢN DÀNH CHO CLIENT**
 

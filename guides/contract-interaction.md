@@ -1,4 +1,4 @@
-# Hướng dẫn tương tác Smart Contract — Freelance DApp
+# Hướng dẫn tương tác Smart Contract — Fapex
 
 > **Network:** Sepolia (`chainId: 11155111`)  
 > **Deploy:** 2026-06-21 — role delegation + gas optimizations  
