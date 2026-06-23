@@ -2,6 +2,8 @@
 
 Kiểm thử luồng backend ShareVolt: **health → đăng nhập SIWE → upload IPFS → tạo job**.
 
+> **Hướng dẫn chi tiết từng bước (tiếng Việt):** xem [postman-walkthrough-vi.md](./postman-walkthrough-vi.md) — gồm cách ký SIWE MetaMask, checklist, và troubleshooting đầy đủ.
+
 ## Yêu cầu
 
 | Thành phần | Biến `.env` | Ghi chú |
@@ -23,7 +25,8 @@ API `/health` và `/api/arbitrator/*` chạy **không cần** MongoDB. Các rout
 ```bash
 cd backend
 npm run docker:mongo
-# hoặc: docker run -d -p 27017:27017 --name mongo mongo:7
+# Script chạy container detached và thoát ngay — không treo terminal.
+# Nếu container "mongo" đã tồn tại, script chỉ start lại và in connection string.
 ```
 
 Trong `backend/.env`:
@@ -37,6 +40,14 @@ Dùng `127.0.0.1` thay vì `localhost` — tránh lỗi `ECONNREFUSED ::1:27017`
 **MongoDB Atlas (free tier):** tạo cluster tại [mongodb.com/atlas](https://www.mongodb.com/atlas), lấy connection string và đặt vào `MONGODB_URI` (xem `backend/.env.example`).
 
 Nếu MongoDB chưa chạy, server vẫn khởi động và ghi cảnh báo; background services (indexer, listener, cron) được bỏ qua — không còn lỗi `buffering timed out`.
+
+**Tắt event indexer khi test Postman** (tránh lỗi Infura `Too Many Requests` / `-32005`):
+
+```env
+ENABLE_EVENT_INDEXER=false
+```
+
+Khởi động lại backend sau khi sửa `.env`.
 
 ## Khởi động server
 
@@ -193,6 +204,8 @@ Ví dụ body tối thiểu:
 | `SIWE verification failed` | domain/chainId/nonce sai | Khớp `SIWE_DOMAIN`, `CHAIN_ID`, gọi nonce mới |
 | `Không thể upload metadata` | Pinata chưa cấu hình | Thêm `PINATA_JWT` trong `.env` |
 | Request treo với `localhost` | IPv6 trên Windows | Dùng `127.0.0.1` |
+| `Too Many Requests` / `-32005` | Infura rate limit từ event indexer | `ENABLE_EVENT_INDEXER=false` trong `.env` |
+| `Index JobStatusUpdated error` | Indexer gọi `eth_getLogs` quá nhiều | Tắt indexer hoặc dùng RPC provider khác |
 
 ## Script kiểm thử trong repo
 
