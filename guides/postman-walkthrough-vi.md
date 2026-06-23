@@ -279,12 +279,13 @@ REST Client / Postman / PowerShell **không thể** ký thay ví. Bạn phải t
 
 MetaMask **không** inject `window.ethereum` trên URL `file://` trong Chrome — nút ký sẽ không làm gì.
 
-1. Khởi động backend: `cd backend` → `npm start` (hoặc `npm run dev`)
+1. Khởi động backend: `cd backend` → `npm start` (hoặc `npm run dev`) — **khởi động lại** sau khi `git pull` bản SIWE mới
 2. Mở Chrome, cài MetaMask, chuyển mạng **Sepolia**
 3. Mở: **http://127.0.0.1:5000/siwe-sign.html** (hoặc http://127.0.0.1:5000/siwe-sign)
-4. **Kết nối MetaMask** → **Lấy nonce từ API** (cần MongoDB + địa chỉ ví) hoặc dán nonce từ bước 4
-5. Kiểm tra `domain`, `uri`, `chainId` khớp `backend/.env` (`SIWE_DOMAIN`, `APP_URL`, `CHAIN_ID`)
-6. **Ký với MetaMask** → bấm **Copy JSON cho Postman** (khuyến nghị) hoặc copy từng **message** / **signature** sang biến môi trường
+4. Xác nhận banner **SIWE Sign Page v4** (ethers, EIP-55). Nếu không thấy v4 → **hard refresh** `Ctrl+Shift+R` (tránh cache trang/JS cũ)
+5. **Kết nối MetaMask** → **Lấy nonce từ API** (cần MongoDB + địa chỉ ví) hoặc dán nonce từ bước 4 — trang tự điền **EIP-55 checksum** (ví dụ `0x523eBd853a1638065f148A05c0Ca423E490D92f7`, không phải chữ thường / typo `16338865`)
+6. Kiểm tra `domain`, `uri`, `chainId` khớp `backend/.env` (`SIWE_DOMAIN`, `APP_URL`, `CHAIN_ID`)
+7. **Ký với MetaMask** → bấm **Copy JSON cho Postman** (khuyến nghị; dán **nguyên khối**, không sửa message sau khi ký) hoặc copy từng **message** / **signature** sang biến môi trường
 
 Gợi ý URL có sẵn tham số (sau khi đã có nonce):
 
@@ -349,9 +350,9 @@ console.log(signature);
 | `uri` | `APP_URL` trong `backend/.env` |
 | `chainId` | `CHAIN_ID` (11155111 = Sepolia) |
 | `nonce` | Giá trị vừa nhận từ POST nonce |
-| `address` | Ví đang kết nối MetaMask |
+| `address` | **EIP-55 checksum** trong dòng 2 message (trang v4 tự chuẩn hóa qua `ethers.getAddress`) |
 
-Sai một trường → `SIWE verification failed` ở bước verify.
+Sai một trường hoặc địa chỉ chữ thường → `SIWE verification failed` / lỗi EIP-55 ở bước verify.
 
 ---
 
@@ -497,8 +498,10 @@ Khởi động lại backend sau khi sửa `.env`.
 | Lỗi | Cách sửa |
 |-----|----------|
 | `Bad control character in string literal in JSON` (400, trước khi verify) | Message SIWE nhiều dòng bị Postman chèn **newline thật** vào body JSON. **Sửa ngay:** (1) Mở `http://127.0.0.1:5000/siwe-sign.html` → ký → **Copy JSON cho Postman** → dán nguyên khối vào Body raw; hoặc (2) giữ biến `siweMessage`/`siweSignature` và **re-import** collection có pre-request script `JSON.stringify`; hoặc (3) escape thủ công: thay mỗi xuống dòng bằng `\n` trên **một dòng** trong JSON |
-| `SIWE verification failed` | Kiểm tra `domain`, `uri`, `chainId`, `nonce` khớp `.env`; gọi nonce mới |
+| `SIWE verification failed` / lỗi **EIP-55** / `invalid address` | Dùng trang **siwe-sign v4** (banner xanh); **hard refresh** `Ctrl+Shift+R`; **khởi động lại backend**; kết nối ví → lấy nonce mới → ký lại → **Copy JSON** (không sửa message). Địa chỉ trong message phải checksum (vd. `…1638065…`, không `…16338865…` chữ thường) |
+| `SIWE verification failed` (khác) | Kiểm tra `domain`, `uri`, `chainId`, `nonce` khớp `.env`; gọi nonce mới |
 | `Invalid or expired nonce` | Chạy lại POST nonce, ký lại message mới |
+| Trang siwe-sign không có banner **v4** / nút ký lỗi `ethers chưa tải` | `git pull` trong `backend/`, **restart** `npm start`, mở lại URL và **Ctrl+Shift+R** |
 | `JWT_SECRET is not defined` | Thêm `JWT_SECRET` vào `.env` |
 
 ### Công cụ test / Windows
