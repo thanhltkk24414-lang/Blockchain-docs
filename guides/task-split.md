@@ -46,3 +46,18 @@ Tài liệu này căn chỉnh task split với **contract thực tế** (`Freela
 - MongoDB là **cache**, chain là source of truth.
 - Proposal/bid: off-chain trong DB; client chọn freelancer bằng địa chỉ khi deposit.
 - Không cần sửa contract cho scope backend hiện tại.
+
+---
+
+## Contributor 2 — tiến độ task
+
+| # | Hạng mục | Trạng thái | Ngày hoàn thành | Ghi chú |
+|---|----------|------------|-----------------|---------|
+| 1 | SIWE + JWT middleware (`/api/auth/nonce`, `/verify`, `/me`) | ✅ Hoàn thành | 2026-06-23 | Guide: [auth-api.md](./auth-api.md); smoke test `npm run test:auth` |
+| 2 | Postman / REST Client / hướng dẫn test local | ✅ Hoàn thành | 2026-06-23 | [postman-testing.md](./postman-testing.md), [postman-walkthrough-vi.md](./postman-walkthrough-vi.md); `backend/api-tests.http`; collection `backend/postman/` |
+| 3 | Deploy Railway + CORS production | ✅ Hoàn thành | 2026-06-24 | URL: `https://fapex-backend-production.up.railway.app`; guide: [deploy-backend.md](./deploy-backend.md); SIWE domain/CORS đã cấu hình |
+| 4 | WebSocket Socket.io thông báo realtime | ✅ Hoàn thành | 2026-06-24 | JWT auth trên `/socket.io`; events `job:updated`, `escrow:*`; mục 7.5 trong [deploy-backend.md](./deploy-backend.md) |
+
+**Còn lại (Contributor 2 / team):** wire frontend React + RainbowKit; tùy chọn bật event indexer (`ENABLE_EVENT_INDEXER`, `SEPOLIA_WSS_URL`) khi demo đồng bộ chain → DB → socket.
+
+*Báo cáo tiến độ chi tiết:* [contributor2-progress.md](../report/contributor2-progress.md)
