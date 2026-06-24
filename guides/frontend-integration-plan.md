@@ -170,13 +170,17 @@ Reference only: `contrib/README.md`, `fapex-frontend/`, root Next marketing file
 - [x] Wire jobs, profile, arbitrator stake, socket feed
 - [x] `.env.example` with contract addresses
 
-### Phase 2 — Contributor 1
+### Phase 2 — Contributor 1 (done)
 
+- [x] Create job form → `POST /api/jobs` (backend IPFS + on-chain `createJob`)
+- [x] Client job detail `/client/jobs/:id` and public `/jobs/:id`
+- [x] USDC approve + `depositEscrow` with `TxStatusModal`
+- [x] Shared `JobCard`, `StatusBadge`, `MilestoneProgress` placeholder
+- [x] `useJobs` refetch after create
+- [x] Demo jobs guide (`frontend/docs/demo-jobs.md`)
 - [ ] Login/register UX polish (port from `fapex-frontend/src/app/login`)
-- [ ] Create job form + IPFS metadata upload → `POST /api/jobs` + `createJob` tx
-- [ ] USDC approve + `depositEscrow` with `TransactionModal`
-- [ ] Client job detail, proposals list (when bids API live)
-- [ ] Milestone approve / dispute raise
+- [ ] Proposals list (when bids API live)
+- [ ] Milestone approve / dispute raise (Phase 3+)
 - [ ] Add `role` to backend `User.profile` if not present
 
 ### Phase 3 — Contributor 2
