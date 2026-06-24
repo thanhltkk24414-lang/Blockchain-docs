@@ -65,7 +65,7 @@ Base: `https://fapex-backend-production.up.railway.app` or `http://127.0.0.1:500
 
 | Route group | Needed for |
 |-------------|------------|
-| `/api/bids/*` | Proposals, accept/reject |
+| `/api/bids/*` | Proposals, accept/reject | Wired (Phase 4) |
 | `/api/disputes/*` | Dispute flows |
 | `/api/reviews/*` | Post-job reviews |
 
@@ -183,18 +183,23 @@ Reference only: `contrib/README.md`, `fapex-frontend/`, root Next marketing file
 - [ ] Milestone approve / dispute raise (Phase 3+)
 - [ ] Add `role` to backend `User.profile` if not present
 
-### Phase 3 — Contributor 2
+### Phase 3 — Contributor 2 (done)
 
-- [ ] Browse filters (port `JobFilters.tsx`)
-- [ ] Submit bid form → bids API + `submitProposal`
-- [ ] Deliverable upload → IPFS + on-chain hash
-- [ ] Arbitrator dispute queue, evidence viewer, vote tx
-- [ ] Shared: `MilestoneProgress`, full `TxStatus` modal
+- [x] Browse filters (port `JobFilters.tsx`)
+- [x] Submit bid form → bids API + `submitProposal`
+- [x] Deliverable upload → IPFS + on-chain hash
+- [x] Arbitrator dispute queue, evidence viewer, vote tx
+- [x] Shared: `MilestoneProgress`, full `TxStatus` modal
 
-### Phase 4 — Polish
+### Phase 4 — Polish (done)
 
-- [ ] Tailwind or design tokens from v0
-- [ ] E2E on Sepolia testnet
+- [x] Tailwind CSS + v0-inspired landing (hero, features, how-it-works, CTA)
+- [x] Accept bid → `PATCH /api/bids/:id/accept` + `assignFreelancer`
+- [x] Deliverable submit → IPFS upload + `EscrowVault.submitWork`
+- [x] Client approve (`approveAndRelease`) and raise dispute
+- [x] Auto-refresh jobs lists (30s poll + tab focus)
+- [x] Vercel SPA config (`vercel.json`)
+- [ ] E2E on Sepolia testnet (manual QA checklist)
 - [ ] Remove `fapex-frontend` mock mode
 - [ ] CI: `npm run build` on frontend submodule
 
