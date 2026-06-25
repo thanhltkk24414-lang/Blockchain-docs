@@ -90,6 +90,29 @@ Không thể đổi freelancer on-chain sau khi đã `depositEscrow`.
 
 ## Demo tranh chấp (Dispute)
 
+### Khung giờ on-chain (Sepolia demo)
+
+Contract Sepolia dùng **`DisputeTimings.demo`** (rút gọn cho demo live — không phải 120h/144h/168h production):
+
+| Giai đoạn | Thời gian (từ `raiseDispute`) |
+|-----------|-------------------------------|
+| Bằng chứng ban đầu | 0 → **15 phút** |
+| Bằng chứng phản bác | 15 → **30 phút** |
+| Commit vote (arbitrator) | **30 → 45 phút** |
+| Reveal vote | **45 → 60 phút** |
+| Finalize (`finalizeDisputeVoting`) | sau **60 phút** |
+| Cửa sổ kháng cáo (appeal) | **2 giờ** sau kết quả |
+
+Production (`DisputeTimings.prod`): 72h / 120h / 144h / 168h / appeal 72h — dùng cho `hardhat test` và mainnet.
+
+Chọn timings trước deploy:
+
+```bash
+node scripts/prepare-dispute-timings.js demo   # Sepolia
+node scripts/prepare-dispute-timings.js prod   # test / mainnet
+npm run deploy:sepolia                         # tự chọn demo + compile + deploy
+```
+
 ### Điều kiện on-chain
 
 | Yêu cầu | Giá trị |
@@ -98,36 +121,36 @@ Không thể đổi freelancer on-chain sau khi đã `depositEscrow`.
 | Stake mỗi arbitrator | ≥ 50 USDC + reputation ≥ 80 (mặc định 100) |
 | Job status để `raiseDispute` | **SUBMITTED** hoặc **IN_PROGRESS** |
 
-### Job #5 (IN_PROGRESS — luồng dispute)
+### Job mới (sau redeploy demo timings)
 
-| Trường | Giá trị |
-|--------|---------|
-| Freelancer on-chain | `0xA7aC8154fa3019f5e95Ba3720240C782C0e3ED70` |
-| Status | **IN_PROGRESS** (chưa submit) |
+Sau redeploy contract mới, **tạo job mới** on-chain — job cũ (#5, #6) trỏ contract cũ.
 
-**Các bước demo:**
+**Các bước demo (toàn bộ trong ~1 giờ):**
 
-1. **Seed pool** (một lần): `npm run seed:arbitrators` — admin join 5 arbitrator.
+1. **Seed pool** (một lần sau redeploy): `npm run seed:arbitrators` — cần ≥5 arbitrator.
+   - Nếu deployer hết Sepolia ETH: `npm run join:arbitrators` (arbitrator tự join khi đã stake).
+   - Kiểm tra: `npm run check:dispute` → `poolSize` ≥ 5.
 
-**Arbitrator đã seed (poolSize = 5):**
+**Arbitrator đã seed (import key từ `deployments/sepolia-arbitrators.json`):**
 
 | # | Address |
 |---|---------|
-| 1 | `0x8C3229EC621644789d7F61FAa82c6d0E5F97d43D` |
+| 1 | `0x9eB7Ea2C405e2D10EeD277fe2026E312AaD47731` |
 | 2 | `0x59a1E706254fcE3152feeE8D95Ecf74f1f30040e` |
 | 3 | `0x9AC328a9Afa96e03820DD0cBA8F8974A5Ba13c46` |
 | 4 | `0xaEF5D171F4113FBD677eF101b331eF4D9ACC15e4` |
 | 5 | `0xa2914408Adc616304dD9BE4433a547992474eD03` |
 
-Private keys (4 ví mới) nằm trong `deployments/sepolia-arbitrators.json` (gitignored) — import vào MetaMask để vote tại `/arbitrator`.
+Private keys nằm trong `deployments/sepolia-arbitrators.json` (gitignored).
 
-2. **Freelancer** (`0xA7aC…ED70`): `startWork` (nếu cần) → **Nộp bàn giao** (`submitWork`).
-3. **Client** (`0x523e…D92f7`): bấm **Khiếu nại** (hoặc phê duyệt nếu không dispute).
-4. Sau `raiseDispute`: UI hiện panel **Tranh chấp** — nộp bằng chứng (0–120h).
-5. **Arbitrator** được chọn: import private key từ `deployments/sepolia-arbitrators.json` → `/arbitrator` → commit/reveal (120h+).
-6. Sau 168h: `finalizeDisputeVoting` → `executeArbitrationResult`.
+2. **Freelancer** (`0xA7aC…ED70`): `startWork` → **Nộp bàn giao** (`submitWork`).
+3. **Client** (`0x523e…D92f7`): bấm **Khiếu nại** (`raiseDispute`).
+4. **0–30 phút:** Nộp bằng chứng (`submitEvidence`) — UI panel **Tranh chấp**.
+5. **30–45 phút:** Arbitrator được chọn → `/arbitrator` → **commit** vote.
+6. **45–60 phút:** Arbitrator → **reveal** vote.
+7. **Sau 60 phút:** `finalizeDisputeVoting` → `executeArbitrationResult`.
 
-**Lưu ý:** Khung giờ commit/reveal là **120h / 144h / 168h** trên contract — demo live trên Sepolia chỉ kịp bước raise + evidence; vote cần đợi hoặc dùng `hardhat test`.
+**Lưu ý:** MockUSDC giữ nguyên địa chỉ cũ; JobRegistry / EscrowVault / ArbitratorPanel là contract mới.
 
 ### Kiểm tra nhanh
 
@@ -136,11 +159,13 @@ npm run check:dispute 5    # poolSize + job #5 on-chain
 curl http://localhost:5000/api/disputes   # sau khi indexer sync
 ```
 
-### Địa chỉ contract Sepolia
+### Địa chỉ contract Sepolia (demo timings — redeploy 2026-06-25)
 
 | Contract | Address |
 |----------|---------|
-| JobRegistry | `0xeF5cc7a22D7Ff9e7FA0c5Fe714F088c98758A549` |
-| EscrowVault | `0xf2143d1EA4D5a8716344c2cef862f9ed41244ED5` |
 | MockUSDC | `0x2293193Eaa5CE5253d5e081046a06dB077f26f8e` |
-| ArbitratorPanel | `0x324e7d8Cfe5aBdb62caa236Bb23626E23BC7EC4F` |
+| ReputationStore | `0x9B0041E95fc236cB296296BE6E4dD6cdFc4eF3Ff` |
+| PlatformTreasury | `0xd752C7C94e6571e9781aB8dAc54c749f33BD09Fe` |
+| JobRegistry | `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9` |
+| EscrowVault | `0xeE67C7bdC2679aa86b6eA4b7311a74B4c8bf6DD3` |
+| ArbitratorPanel | `0x96eCEfBd86dF049994fd411689566B126afcd0EB` |
