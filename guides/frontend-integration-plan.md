@@ -232,3 +232,31 @@ Backend CORS must include `http://localhost:3000` (`ALLOWED_ORIGINS` on Railway)
 4. **fapex-frontend wrong API paths** — do not copy `services/api.ts` verbatim.
 5. **CORS / SIWE domain** — production needs `SIWE_DOMAIN` and `APP_URL` matching deployed FE origin.
 6. **No job detail routes yet** — `/jobs/:id` pages exist only in Next reference tree.
+
+---
+
+## 9. Troubleshooting: wrong freelancer on-chain (demo job #5)
+
+Sepolia simulation for **JobRegistry job #5** (Mongo id `6a3c2f31de20672c920d3f6c`):
+
+| Field | Value |
+|-------|-------|
+| Client on-chain | `0x523eBd853a1638065f148A05c0Ca423E490D92f7` (INDEXER / deployer) |
+| Freelancer on-chain | `0xA7aC8154fa3019f5e95Ba3720240C782C0e3ED70` |
+| Status | `IN_PROGRESS` |
+| Wrong wallet (reverts) | `0xa7Ac8154fa3019F5c95BA3720240c782c0E3eD70` — byte `c95` vs `e95` |
+
+`submitWork` reverts with `OnlyFreelancer` when MetaMask uses the wrong address. This is **not** a checksum issue — the client likely typed a different address at `depositEscrow` than the accepted bid.
+
+**Cannot fix on-chain** for job #5. Options:
+
+1. **Freelancer** switches MetaMask to `0xA7aC8154fa3019f5e95Ba3720240C782C0e3ED70` (if they control that key).
+2. **Create a new job** — accept bid, fund escrow with the bidder's exact address (UI now locks to accepted bid).
+
+**Correct demo flow (two wallets):**
+
+1. **Client SIWE** — any wallet for login; **escrow** must use `0x523e…D92f7` (on-chain client).
+2. **Freelancer bid** — connect bidder wallet, submit proposal, note full address.
+3. **Accept bid** — DB stores normalized freelancer from bid.
+4. **Fund escrow** — client on-chain wallet; freelancer field is read-only from accepted bid.
+5. **Submit deliverable** — same freelancer wallet as step 2; UI preflight simulates before IPFS upload.
