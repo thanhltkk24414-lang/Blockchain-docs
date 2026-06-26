@@ -82,6 +82,37 @@ FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 
 ---
 
+## Lỗi đã sửa (2026-06-26)
+
+### Freelancer stats (Completed / Total earned)
+
+**Triệu chứng:** Job COMPLETED on-chain nhưng dashboard hiển thị Completed 0, Total earned 0 USDC.
+
+**Nguyên nhân:** `GET /api/users/stats/:address` chỉ trả `user.stats` cache — không bao giờ được cập nhật khi `FundsReleased`.
+
+**Sửa:**
+- `freelancerStatsService.js` — tính `jobsCompleted` / `totalEarned` từ MongoDB `Job` (status `COMPLETED`, `freelancerAddress` khớp) + reconcile on-chain khi indexer chậm.
+- `eventIndexer` — `$inc` stats khi sync `FundsReleased` (số tiền chính xác từ event).
+- FE `FreelancerDashboardPage` không đổi — vẫn gọi `/api/users/stats/:address`.
+
+### raiseDispute revert không decode
+
+**Triệu nhân:** Gas cap `raiseDispute` = 400k trong khi Sepolia cần ~641k (sortition + 5 arbitrator) → OOG hiện dạng "execution reverted".
+
+**Sửa:** `contractGas.ts` min 700k / cap 900k; `useJobActions` preflight tier, pool ≥5, số dư USDC phí 2%.
+
+### Accept bid không đóng bid khác
+
+**Triệu chứng:** Job đã accept 1 bid + nạp escrow nhưng bid khác vẫn hiện "Accept bid".
+
+**Nguyên nhân:** `acceptBid` chỉ set `accepted` cho bid được chọn; job DB vẫn `OPEN` đến khi `depositEscrow` nên FE chỉ check `jobStatus !== 'OPEN'` không đủ.
+
+**Sửa:**
+- `PATCH /api/bids/:id/accept` → `updateMany` reject các bid `pending` còn lại.
+- `AcceptBidButton` + `JobDetailPage` — prop `hasAcceptedBid` ẩn nút accept trên bid khác.
+
+---
+
 ## Lỗi đã sửa (job creation)
 
 **Triệu chứng cũ:** Client SIWE ≠ on-chain client (INDEXER) → mint USDC vô dụng, phải đổi ví để deposit.
@@ -98,6 +129,9 @@ FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 |--------|-----|-------------|
 | Job cũ (INDEXER là client on-chain) | Thấp | Tạo job mới hoặc deposit bằng ví INDEXER |
 | DB `ASSIGNED` sau accept, chain `OPEN` | Thấp | UI dùng on-chain cho deposit; indexer sync khi deposit |
+| Stats freelancer = 0 dù job COMPLETED | **Đã sửa** | `freelancerStatsService` + indexer `FundsReleased` |
+| `raiseDispute` OOG / revert mơ hồ | **Đã sửa** | Gas 700k–900k + preflight FE |
+| Nhiều bid vẫn "Accept" sau accept | **Đã sửa** | BE reject others + `hasAcceptedBid` FE |
 | `fapex-frontend_v2` ABI tên hàm cũ | Tham chiếu | Canonical `frontend/src` |
 | `POST /api/jobs/:id/assign-freelancer` | Legacy | Chỉ job cũ; dùng `depositEscrow` cho job mới |
 
