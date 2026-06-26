@@ -80,6 +80,16 @@ Chi tiết: `frontend/docs/job-create-flow-vi.md`.
 
 FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 
+### UI tranh chấp (2026-06-27)
+
+| Panel | Ai thấy | Nội dung |
+|-------|---------|----------|
+| `DisputeEvidencePanel` | Mọi người (DISPUTED) | Danh sách bằng chứng on-chain (`getEvidences`) + off-chain (`GET /api/disputes/:id/evidences`); form nộp chỉ client/FL trong 30 phút đầu |
+| `ArbitratorDisputePanel` | Arbitrator được chọn | Commit/reveal; **tổng vote đã reveal** (`getVote` × 5); disable reveal nếu `AlreadyRevealed`; Finalize / Execute |
+| `DisputeResultPanel` | Client / freelancer | **Kết quả** (`getPendingResult`) sau finalize; countdown kháng cáo 2h; nút `fileAppeal` |
+
+Đọc contract: `ArbitratorPanel.getVote`, `getPendingResult`, `getEvidences` · `EscrowVault.fileAppeal`, `appealFiled`.
+
 ---
 
 ## Lỗi đã sửa (2026-06-26)
