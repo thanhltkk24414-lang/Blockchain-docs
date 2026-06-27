@@ -11,6 +11,13 @@
 
 ## Guides
 
+- [Ma trận audit issue (VI)](guides/issue-audit-status-vi.md)
+- [Luồng E2E (VI)](guides/workflow-e2e-vi.md)
+- [Thiết kế hệ thống (VI)](guides/system-design-vi.md)
+- [Hướng dẫn sử dụng (VI)](guides/manual-vi.md)
+- [Demo script (VI)](guides/demo-script-vi.md)
+- [Báo cáo dự án (outline VI)](guides/project-report-vi.md)
+- [Chainlink integration (VI)](guides/chainlink-integration-vi.md)
 - [Phân công task backend](guides/task-split.md) — ma trận Contributor 1 / owner / Contributor 2 + tiến độ task 1–4
 - [SIWE + JWT auth](guides/auth-api.md) — wallet login endpoints
 - [Test API — Postman (tóm tắt)](guides/postman-testing.md) — health → auth → IPFS → jobs

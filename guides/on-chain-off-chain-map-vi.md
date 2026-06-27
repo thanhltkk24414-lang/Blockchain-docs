@@ -2,16 +2,17 @@
 
 > Cập nhật: 2026-06-26 · JobRegistry Sepolia: `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9`
 
-## Mô hình hai ví (INDEXER relay)
+## Mô hình ví (client-signed createJob)
 
 | Vai trò | Ví | Hành động |
 |--------|-----|-----------|
-| **API client** | Ví SIWE (người đăng job) | `POST /api/jobs`, accept bid, UI dashboard |
-| **On-chain client** | `INDEXER_PRIVATE_KEY` (Railway) | `JobRegistry.createJob`, `depositEscrow` phải ký từ ví này |
+| **Client** | Cùng ví SIWE + MetaMask | `createJob`, `depositEscrow`, `approveAndRelease` |
 | **Freelancer** | MetaMask freelancer | `submitProposal`, `startWork`, `submitWork` |
-| **Indexer backend** | Cùng INDEXER + cron | Đọc events → MongoDB, không thay thế escrow ký user |
+| **Indexer backend** | `INDEXER_PRIVATE_KEY` | Đọc events → MongoDB; **không** relay `createJob` |
 
-Frontend hiển thị `WalletMismatchBanner` khi SIWE client ≠ on-chain client — **đúng thiết kế demo**.
+`clientAddress` (MongoDB) và `onchainClientAddress` (JobRegistry) **phải trùng** sau khi client ký `createJob`.
+
+Frontend: `WalletMismatchBanner` cảnh báo khi MetaMask ≠ client on-chain (thường do đổi ví sau SIWE).
 
 ---
 
@@ -21,11 +22,11 @@ Frontend hiển thị `WalletMismatchBanner` khi SIWE client ≠ on-chain client
 |---------------------|--------------|-------------------------|----------------|
 | `onchainJobId` | `JobRegistry.jobCounter` | — | Khóa compound với `jobRegistryAddress` |
 | `jobRegistryAddress` / `chainId` | Địa chỉ deploy hiện tại | Lưu lúc tạo job | Phân biệt job cũ sau redeploy |
-| `clientAddress` | — | Ví SIWE (chủ job API) | Khác `onchainClientAddress` khi relay INDEXER |
-| `onchainClientAddress` | `Job.client` on registry | Lưu sau create | Dùng cho preflight `depositEscrow` |
+| `clientAddress` | — | Ví SIWE (chủ job API) | Trùng `onchainClientAddress` sau fix |
+| `onchainClientAddress` | `Job.client` on registry | Lưu sau register API | Dùng cho preflight `depositEscrow` |
 | `freelancerAddress` | `Job.freelancer` sau deposit | Bid accepted (tạm) | Indexer + `EscrowDeposited` ghi đè |
 | `status` | `JobRegistry.JobStatus` enum 0–7 | `Job.status` string | Indexer events + `GET /jobs/:id` reconcile |
-| `metadataCID` | `jobMetadataCID` | IPFS upload trước create | API ghi đầy đủ; indexer chỉ CID chain |
+| `metadataCID` | `jobMetadataCID` | IPFS upload trước create | FE upload → on-chain → API register |
 | `deliverableCID` | `deliverableCID` | — | `WorkSubmitted` event |
 | `contractValue`, `deadline` | Job struct | Form tạo job | Phải khớp đơn vị USDC 6 decimals |
 | `title`, `description`, `skills` | — | MongoDB + IPFS JSON | Không có on-chain |
@@ -58,12 +59,14 @@ Frontend hiển thị `WalletMismatchBanner` khi SIWE client ≠ on-chain client
 
 ## Luồng E2E đúng (Sepolia demo)
 
-1. Client SIWE → `POST /api/jobs` → backend INDEXER gọi `createJob` → lưu MongoDB (`jobReconcile`).
+1. Client SIWE → upload IPFS → MetaMask ký `createJob` → `POST /api/jobs` (kèm `onchainJobId`).
 2. Freelancer → `POST /api/bids` (off-chain).
-3. Client → `PATCH /api/bids/:id/accept` → DB gán FL; **không** gọi `assignFreelancer` (chỉ EscrowVault được gọi).
-4. Client chuyển MetaMask sang **ví INDEXER** → `approve` USDC + `depositEscrow(jobId, freelancer)`.
+3. Client → `PATCH /api/bids/:id/accept` → DB gán FL; **không** gọi `assignFreelancer`.
+4. Client **cùng ví** → mint MockUSDC (nếu cần) → `approve` + `depositEscrow(jobId, freelancer)`.
 5. Freelancer → `startWork` → `submitWork`.
-6. Client INDEXER → `approveAndRelease` hoặc dispute flow.
+6. Client → `approveAndRelease` hoặc dispute flow.
+
+Chi tiết: `frontend/docs/job-create-flow-vi.md`.
 
 ### Dispute demo timings (`disputeTimings: demo` trong `deployments/sepolia.json`)
 
@@ -77,21 +80,56 @@ Frontend hiển thị `WalletMismatchBanner` khi SIWE client ≠ on-chain client
 
 FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 
+### UI tranh chấp (2026-06-27)
+
+| Panel | Ai thấy | Nội dung |
+|-------|---------|----------|
+| `DisputeEvidencePanel` | Mọi người (DISPUTED) | Danh sách bằng chứng on-chain (`getEvidences`) + off-chain (`GET /api/disputes/:id/evidences`); form nộp chỉ client/FL trong 30 phút đầu |
+| `ArbitratorDisputePanel` | Arbitrator được chọn | Commit/reveal; **tổng vote đã reveal** (`getVote` × 5); disable reveal nếu `AlreadyRevealed`; Finalize / Execute |
+| `DisputeResultPanel` | Client / freelancer | **Kết quả** (`getPendingResult`) sau finalize; countdown kháng cáo 2h; nút `fileAppeal` |
+
+Đọc contract: `ArbitratorPanel.getVote`, `getPendingResult`, `getEvidences` · `EscrowVault.fileAppeal`, `appealFiled`.
+
+---
+
+## Lỗi đã sửa (2026-06-26)
+
+### Freelancer stats (Completed / Total earned)
+
+**Triệu chứng:** Job COMPLETED on-chain nhưng dashboard hiển thị Completed 0, Total earned 0 USDC.
+
+**Nguyên nhân:** `GET /api/users/stats/:address` chỉ trả `user.stats` cache — không bao giờ được cập nhật khi `FundsReleased`.
+
+**Sửa:**
+- `freelancerStatsService.js` — tính `jobsCompleted` / `totalEarned` từ MongoDB `Job` (status `COMPLETED`, `freelancerAddress` khớp) + reconcile on-chain khi indexer chậm.
+- `eventIndexer` — `$inc` stats khi sync `FundsReleased` (số tiền chính xác từ event).
+- FE `FreelancerDashboardPage` không đổi — vẫn gọi `/api/users/stats/:address`.
+
+### raiseDispute revert không decode
+
+**Triệu nhân:** Gas cap `raiseDispute` = 400k trong khi Sepolia cần ~641k (sortition + 5 arbitrator) → OOG hiện dạng "execution reverted".
+
+**Sửa:** `contractGas.ts` min 700k / cap 900k; `useJobActions` preflight tier, pool ≥5, số dư USDC phí 2%.
+
+### Accept bid không đóng bid khác
+
+**Triệu chứng:** Job đã accept 1 bid + nạp escrow nhưng bid khác vẫn hiện "Accept bid".
+
+**Nguyên nhân:** `acceptBid` chỉ set `accepted` cho bid được chọn; job DB vẫn `OPEN` đến khi `depositEscrow` nên FE chỉ check `jobStatus !== 'OPEN'` không đủ.
+
+**Sửa:**
+- `PATCH /api/bids/:id/accept` → `updateMany` reject các bid `pending` còn lại.
+- `AcceptBidButton` + `JobDetailPage` — prop `hasAcceptedBid` ẩn nút accept trên bid khác.
+
 ---
 
 ## Lỗi đã sửa (job creation)
 
-**Triệu chứng:** `409` — *"This on-chain job id already exists for the current JobRegistry in MongoDB."*
+**Triệu chứng cũ:** Client SIWE ≠ on-chain client (INDEXER) → mint USDC vô dụng, phải đổi ví để deposit.
 
-**Nguyên nhân gốc:**
+**Sửa:** Client ký `createJob` on-chain; API chỉ register + verify. Không redeploy contract.
 
-1. `createJob` on-chain **thành công** (job id mới từ `jobCounter`).
-2. **Race:** `eventIndexer` chèn bản ghi stub (`clientAddress` = ví INDEXER) giữa `findOne` và `save` → duplicate key `(onchainJobId, jobRegistryAddress)`.
-3. Hoặc stub indexer tồn tại, `clientAddress` ≠ ví SIWE → trước đây trả 409 thay vì merge metadata API.
-
-**Sửa:** `src/utils/jobReconcile.js` — adopt stub / retry sau duplicate; indexer set `onchainClientAddress`; `createJob` trả 200 `reconciled` khi link thành công.
-
-**Test:** `node scripts/test-job-reconcile.js`
+**Race indexer:** `jobReconcile.js` vẫn adopt stub khi indexer chèn trước API.
 
 ---
 
@@ -99,9 +137,13 @@ FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 
 | Vấn đề | Mức | Hướng xử lý |
 |--------|-----|-------------|
+| Job cũ (INDEXER là client on-chain) | Thấp | Tạo job mới hoặc deposit bằng ví INDEXER |
 | DB `ASSIGNED` sau accept, chain `OPEN` | Thấp | UI dùng on-chain cho deposit; indexer sync khi deposit |
-| `fapex-frontend_v2` ABI tên hàm cũ (`depositAndAssign`, `submitDeliverable`) | Tham chiếu | Không merge — canonical `frontend/src` đúng ABI |
-| `POST /api/jobs/:id/assign-freelancer` | Tránh dùng | Chỉ EscrowVault được authorize `assignFreelancer` |
+| Stats freelancer = 0 dù job COMPLETED | **Đã sửa** | `freelancerStatsService` + indexer `FundsReleased` |
+| `raiseDispute` OOG / revert mơ hồ | **Đã sửa** | Gas 700k–900k + preflight FE |
+| Nhiều bid vẫn "Accept" sau accept | **Đã sửa** | BE reject others + `hasAcceptedBid` FE |
+| `fapex-frontend_v2` ABI tên hàm cũ | Tham chiếu | Canonical `frontend/src` |
+| `POST /api/jobs/:id/assign-freelancer` | Legacy | Chỉ job cũ; dùng `depositEscrow` cho job mới |
 
 ---
 
@@ -112,6 +154,5 @@ FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 | Contracts | `contracts/FreelanceSystem.sol`, `contracts/config/DisputeTimings.demo.sol` |
 | Backend create | `backend/src/controllers/jobController.js`, `backend/src/utils/jobReconcile.js` |
 | Indexer | `backend/src/services/blockchain/eventIndexer.js` |
-| Contract service | `backend/src/services/blockchain/contractService.js` |
-| FE contracts | `frontend/src/lib/contracts/`, `deployments/sepolia.json` |
+| FE create | `frontend/src/hooks/useCreateJob.ts`, `CreateJobForm.tsx` |
 | FE escrow | `frontend/src/hooks/useEscrowDeposit.ts` |
