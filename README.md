@@ -76,6 +76,7 @@
 | **Backend API** | https://fapex-backend-production.up.railway.app |
 | Health | `/health` |
 | Config | `/api/config` |
+| Admin stats | `/api/admin/stats` |
 | SIWE demo | `/siwe-sign.html` |
 | WebSocket | `/socket.io` (JWT) |
 | **Frontend** | Vercel (`*.vercel.app`) |

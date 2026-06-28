@@ -60,7 +60,21 @@
 
 Pool cần **≥5** member để `raiseDispute` hoạt động.
 
-### A.6 Theme & ngôn ngữ
+### A.6 Platform admin (governance dashboard)
+
+| Bước | Hành động |
+|------|-----------|
+| 1 | Connect ví **deployer** Sepolia (`0x523e…92f7`) hoặc ví đã được `grantRole` |
+| 2 | Mở **`/admin`** (link **Admin** trên nav khi có quyền, hoặc **Governance** ở footer landing) |
+| 3 | Xem contract addresses, pool size, indexer stats |
+| 4 | **Pause/unpause** escrow (admin hoặc ROLE_PAUSER) |
+| 5 | **Grant/revoke** delegated roles (chỉ contract admin) |
+| 6 | **joinPool** hộ arbitrator (admin hoặc ROLE_ARBITRATOR_MANAGER) |
+| 7 | **adminForceResolve** khi quorum fail (admin hoặc ROLE_FORCE_RESOLVER) |
+
+Quyền admin **on-chain** — MongoDB enum `admin` không dùng. CLI thay thế: `scripts/grant-platform-roles.js`.
+
+### A.7 Theme & ngôn ngữ
 
 - UI **tiếng Anh**
 - Light / dark theme (toggle header)
@@ -104,6 +118,7 @@ npm run dev                 # http://127.0.0.1:5000
 |----------|--------|
 | `GET /health` | MongoDB + contract env |
 | `GET /api/config` | Addresses cho frontend |
+| `GET /api/admin/stats` | Job counts, indexer lastBlock (read-only, demo) |
 | `POST /api/auth/nonce` | SIWE bước 1 |
 | `POST /api/auth/verify` | SIWE → JWT |
 
