@@ -1,44 +1,179 @@
-# Hướng dẫn sử dụng FAPEX (VI)
+# Hướng dẫn sử dụng & phát triển — FAPEX
 
-## Yêu cầu
+> **English summary:** User guide for Client/Freelancer/Arbitrator roles on Sepolia, plus developer setup for local monorepo.
 
-- MetaMask + Sepolia ETH (gas)
-- MockUSDC trên Sepolia (mint permissionless)
+**Cập nhật:** 2026-06-28
 
-## Bước 1 — Ví & mạng
+---
 
-1. Cài MetaMask, thêm Sepolia
-2. Nếu banner **Sai mạng** xuất hiện → bấm **Chuyển sang Sepolia**
+## Phần A — Hướng dẫn người dùng
 
-## Bước 2 — Đăng nhập
+### A.1 Yêu cầu
 
-1. **Connect** MetaMask
-2. **Sign in (SIWE)** — ký message, không cần mật khẩu
-3. `/profile` — username + chọn **Client** hoặc **Freelancer**
+| Yêu cầu | Chi tiết |
+|---------|----------|
+| Ví | MetaMask (hoặc RainbowKit-supported) |
+| Mạng | **Sepolia** (chainId `11155111`) |
+| Gas | Sepolia ETH (faucet) |
+| Token | **MockUSDC** — mint miễn phí trên UI (không phải USDC thật) |
 
-## Bước 3 — Client
+**Production frontend:** Vercel URL của team · **API:** https://fapex-backend-production.up.railway.app
 
-- `/client` tạo job, upload mô tả
-- Khi có bid: accept → mint USDC nếu thiếu → **Deposit escrow**
-- Job detail: phê duyệt hoặc khiếu nại
+### A.2 Kết nối ví & đăng nhập
 
-## Bước 4 — Freelancer
+1. Mở app → **Connect Wallet**
+2. Nếu banner **Wrong network** → **Switch to Sepolia**
+3. **Sign in (SIWE)** — ký message EIP-4361 (không password)
+4. `/profile` — đặt username, chọn role **Client** hoặc **Freelancer**
 
-- `/browse` lọc job → bid trên `/jobs/:id`
-- Khi assigned: **Start work** → upload file → **Submit**
+### A.3 Client
 
-## Bước 5 — Arbitrator (tùy chọn)
+| Bước | Hành động | Route |
+|------|-----------|-------|
+| 1 | Tạo job (mô tả + budget USDC) | `/client` |
+| 2 | Chờ bid → Accept bid | Job detail |
+| 3 | Mint MockUSDC nếu thiếu | Job detail |
+| 4 | Approve + **Deposit escrow** | Job detail |
+| 5 | Phê duyệt hoặc **Raise dispute** | Job detail |
 
-- Stake 50 USDC + join pool (script admin)
-- `/arbitrator` — vote tranh chấp
+**Lưu ý:** Ví MetaMask khi `depositEscrow` phải trùng **on-chain client** (cùng ví đã ký `createJob`).
 
-## API công khai
+### A.4 Freelancer
 
-- Health: `GET /health`
-- Config: `GET /api/config`
+| Bước | Hành động | Route |
+|------|-----------|-------|
+| 1 | Duyệt job | `/browse` |
+| 2 | Submit bid | `/jobs/:id` |
+| 3 | Sau khi client deposit | Job detail |
+| 4 | **Start work** → upload file | Job detail |
+| 5 | **Submit deliverable** | Job detail |
 
-## Tài liệu thêm
+### A.5 Arbitrator
 
-- [Luồng E2E](workflow-e2e-vi.md)
-- [Demo script](demo-script-vi.md)
-- [Audit status](issue-audit-status-vi.md)
+| Bước | Hành động |
+|------|-----------|
+| 1 | Mint ≥50 MockUSDC |
+| 2 | **Stake** trên PlatformTreasury |
+| 3 | Admin/script **joinPool** (hoặc self-join nếu đủ điều kiện) |
+| 4 | Khi được sortition chọn → `/arbitrator` hoặc job detail |
+| 5 | **Commit** → **Reveal** vote trong cửa sổ thời gian |
+
+Pool cần **≥5** member để `raiseDispute` hoạt động.
+
+### A.6 Theme & ngôn ngữ
+
+- UI **tiếng Anh**
+- Light / dark theme (toggle header)
+
+---
+
+## Phần B — Hướng dẫn developer
+
+### B.1 Clone monorepo
+
+```bash
+git clone --recurse-submodules https://github.com/thanhltkk24414-lang/Blockchain.git
+cd Blockchain
+git checkout dev
+git submodule update --init --recursive
+```
+
+### B.2 Contracts (root)
+
+```bash
+npm install
+cp contracts/.env.example contracts/.env   # PRIVATE_KEY, SEPOLIA_RPC_URL
+npm run compile
+npm run deploy:sepolia      # demo timings
+npm run seed:arbitrators
+```
+
+Địa chỉ: `deployments/sepolia.json`
+
+### B.3 Backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Điền: MONGODB_URI, RPC_URL, JWT_SECRET, contract addresses, PINATA_JWT
+npm run dev                 # http://127.0.0.1:5000
+```
+
+| Endpoint | Mô tả |
+|----------|--------|
+| `GET /health` | MongoDB + contract env |
+| `GET /api/config` | Addresses cho frontend |
+| `POST /api/auth/nonce` | SIWE bước 1 |
+| `POST /api/auth/verify` | SIWE → JWT |
+
+Local MongoDB: `npm run docker:mongo` (trong `backend/`)
+
+### B.4 Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# VITE_API_URL=http://127.0.0.1:5000
+npm run dev                 # http://localhost:3000
+```
+
+### B.5 Biến môi trường quan trọng
+
+**Backend (`backend/.env`):**
+
+```
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+MONGODB_URI=mongodb://127.0.0.1:27017/freelance-platform
+RPC_URL=https://sepolia.infura.io/v3/...
+JOB_REGISTRY_ADDRESS=0x302629f82d51b0972ffc3A99cbE355F4acEf908d
+LEGACY_JOB_REGISTRY_ADDRESS=0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9
+SIWE_DOMAIN=localhost
+APP_URL=http://localhost:3000
+```
+
+**Frontend (`frontend/.env`):** sync `VITE_*_ADDRESS` với `deployments/sepolia.json`
+
+**Railway production:**
+```
+ALLOWED_ORIGINS=http://localhost:3000,https://*.vercel.app
+SIWE_DOMAIN=your-app.vercel.app
+APP_URL=https://your-app.vercel.app
+```
+
+### B.6 Sau redeploy JobRegistry
+
+```bash
+cd backend
+node scripts/migrate-job-registry-index.js
+```
+
+Cập nhật `JOB_REGISTRY_ADDRESS` trên Railway + Vercel env.
+
+### B.7 Kiểm thử API
+
+- [postman-walkthrough-vi.md](postman-walkthrough-vi.md)
+- [auth-api.md](auth-api.md)
+
+---
+
+## Phần C — Troubleshooting
+
+| Triệu chứng | Cách xử lý |
+|-------------|------------|
+| Wrong network | Switch Sepolia trong MetaMask |
+| Wallet mismatch banner | Đổi MetaMask sang đúng ví on-chain |
+| JobRegistry mismatch | Đồng bộ env với `deployments/sepolia.json` |
+| CORS error trên Vercel | Railway `ALLOWED_ORIGINS` có `https://*.vercel.app` |
+| raiseDispute revert | `npm run check:dispute` — pool ≥5, đủ USDC fee |
+| Indexer chậm | Đợi ~2 phút hoặc refresh; UI đọc chain trực tiếp |
+
+---
+
+## Tài liệu liên quan
+
+- [workflow-e2e-vi.md](workflow-e2e-vi.md)
+- [demo-script-vi.md](demo-script-vi.md)
+- [demo-qa-defense-vi.md](demo-qa-defense-vi.md)
+- [deploy-backend.md](deploy-backend.md)

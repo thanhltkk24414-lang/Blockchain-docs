@@ -1,8 +1,9 @@
 # Hướng dẫn tương tác Smart Contract — Fapex
 
 > **Network:** Sepolia (`chainId: 11155111`)  
-> **Deploy:** 2026-06-21 — role delegation + gas optimizations  
-> **Repo:** [thanhltkk24414-lang/Blockchain](https://github.com/thanhltkk24414-lang/Blockchain)
+> **Deploy:** 2026-06-27 — `disputeTimings: demo` (cửa sổ phút)  
+> **Repo:** [thanhltkk24414-lang/Blockchain](https://github.com/thanhltkk24414-lang/Blockchain)  
+> **Canonical:** `deployments/sepolia.json`
 
 ---
 
@@ -11,11 +12,12 @@
 | Contract | Address |
 |----------|---------|
 | MockUSDC | `0x2293193Eaa5CE5253d5e081046a06dB077f26f8e` |
-| ReputationStore | `0x7A96219812e9363dBdbD43BE14384820E5f9b0DC` |
-| PlatformTreasury | `0x0110BfF85E484b82205833D3950fC7C61714c0e7` |
-| JobRegistry | `0xeF5cc7a22D7Ff9e7FA0c5Fe714F088c98758A549` |
-| ArbitratorPanel | `0x324e7d8Cfe5aBdb62caa236Bb23626E23BC7EC4F` |
-| EscrowVault | `0xf2143d1EA4D5a8716344c2cef862f9ed41244ED5` |
+| ReputationStore | `0x5e457db6a8A44C143180043c5Bb7223C7222898E` |
+| PlatformTreasury | `0x666aF0Ec040377026E0D40870Bce7c165f741530` |
+| JobRegistry | `0x302629f82d51b0972ffc3A99cbE355F4acEf908d` |
+| ArbitratorPanel | `0x490Afc952af85aB0dEb375Bd36A65db5E1F47418` |
+| EscrowVault | `0x5f8C4c552F49103cA84dF455571155C8268C2aF5` |
+| Legacy JobRegistry | `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9` |
 | Platform Admin (deployer) | `0x523eBd853a1638065f148A05c0Ca423E490D92f7` |
 
 **Lưu ý testnet:** MockUSDC có hàm `mint()` public — mint trước khi test (`6 decimals`, 1 USDC = `1_000_000`).
