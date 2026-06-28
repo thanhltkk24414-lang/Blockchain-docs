@@ -15,20 +15,21 @@ Tài liệu ngắn so sánh luồng tranh chấp Fapex với Kleros, ghi nhận 
 | Bằng chứng on-chain | Metadata court | `bytes32` = `keccak256(CID)` — CID lưu off-chain |
 | Thực thi ruling | Tự động / executor | Manual `executeArbitrationResult` |
 | Fallback quorum fail | Appeal / stake redistribution | `adminForceResolve` (admin) |
+| Randomness | Court sortition | `block.prevrandao` (v2: Chainlink VRF) |
 
 ## 2. Luồng Fapex (tóm tắt)
 
 ```
 raiseDispute (EscrowVault, phí 2% cap 50 USDC)
-  → setupDisputePanel: sortition 5 arbitrator
-  → submitEvidence (0–30 phút demo / 0–120h prod): parties, hash CID
-  → commitVote → revealVote
+  → setupDisputePanel: sortition 5 arbitrator (prevrandao)
+  → submitEvidence (0–10 phút demo / 0–120h prod): parties, hash CID
+  → commitVote (10–13 min demo) → revealVote (13–16 min)
   → finalizeDisputeVoting: slash no-reveal, tally
-  → [optional] fileAppeal → round 2
+  → [optional] fileAppeal → round 2 (appeal window 30 min demo)
   → executeArbitrationResult: payout + reward arbitrator đúng kết quả
 ```
 
-**Timing demo Sepolia:** xem `docs/guides/demo-seed-data-vi.md` và `DisputeTimings.demo.sol`.
+**Timing demo Sepolia (redeploy 2026-06-27):** evidence 0–10 min, commit 10–13, reveal 13–16, appeal 30 min. Xem `demo-seed-data-vi.md` và `DisputeTimings.demo.sol`.
 
 ## 3. Phạt arbitrator — on-chain
 

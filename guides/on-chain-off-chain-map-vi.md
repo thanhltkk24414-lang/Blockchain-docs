@@ -1,149 +1,126 @@
-# FAPEX — Bản đồ On-chain / Off-chain (Audit)
+# FAPEX — Bản đồ On-chain / Off-chain
 
-> Cập nhật: 2026-06-26 · JobRegistry Sepolia: `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9`
+> **English summary:** Data authority map — what lives on Sepolia contracts vs MongoDB vs IPFS, including post-redeploy JobRegistry scoping.
 
-## Mô hình ví (client-signed createJob)
+**Cập nhật:** 2026-06-28
 
-| Vai trò | Ví | Hành động |
-|--------|-----|-----------|
-| **Client** | Cùng ví SIWE + MetaMask | `createJob`, `depositEscrow`, `approveAndRelease` |
-| **Freelancer** | MetaMask freelancer | `submitProposal`, `startWork`, `submitWork` |
-| **Indexer backend** | `INDEXER_PRIVATE_KEY` | Đọc events → MongoDB; **không** relay `createJob` |
+**JobRegistry hiện tại:** `0x302629f82d51b0972ffc3A99cbE355F4acEf908d`  
+**Legacy JobRegistry:** `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9`
 
-`clientAddress` (MongoDB) và `onchainClientAddress` (JobRegistry) **phải trùng** sau khi client ký `createJob`.
+---
 
-Frontend: `WalletMismatchBanner` cảnh báo khi MetaMask ≠ client on-chain (thường do đổi ví sau SIWE).
+## Mô hình ví
+
+| Vai trò | Ví | Hành động on-chain |
+|--------|-----|-------------------|
+| **Client** | Cùng ví SIWE + MetaMask khi tx | `createJob`, `depositEscrow`, `approveAndRelease`, `raiseDispute` |
+| **Freelancer** | MetaMask freelancer | `startWork`, `submitWork`, evidence |
+| **Arbitrator** | Ví seed pool | `commitVote`, `revealVote` |
+| **Indexer** | `INDEXER_PRIVATE_KEY` | Đọc events → MongoDB; optional relay `createJob` |
+
+`clientAddress` (MongoDB) và `onchainClientAddress` (JobRegistry) **phải trùng** sau `createJob`.
+
+Frontend: `WalletMismatchBanner` khi MetaMask ≠ party on-chain.
 
 ---
 
 ## Bảng mapping dữ liệu
 
-| Trường / Khái niệm | Chỉ on-chain | Chỉ off-chain (MongoDB) | Kết hợp (sync) |
-|---------------------|--------------|-------------------------|----------------|
+| Trường / Khái niệm | Chỉ on-chain | Chỉ off-chain | Kết hợp (sync) |
+|---------------------|--------------|---------------|----------------|
 | `onchainJobId` | `JobRegistry.jobCounter` | — | Khóa compound với `jobRegistryAddress` |
-| `jobRegistryAddress` / `chainId` | Địa chỉ deploy hiện tại | Lưu lúc tạo job | Phân biệt job cũ sau redeploy |
-| `clientAddress` | — | Ví SIWE (chủ job API) | Trùng `onchainClientAddress` sau fix |
-| `onchainClientAddress` | `Job.client` on registry | Lưu sau register API | Dùng cho preflight `depositEscrow` |
-| `freelancerAddress` | `Job.freelancer` sau deposit | Bid accepted (tạm) | Indexer + `EscrowDeposited` ghi đè |
-| `status` | `JobRegistry.JobStatus` enum 0–7 | `Job.status` string | Indexer events + `GET /jobs/:id` reconcile |
-| `metadataCID` | `jobMetadataCID` | IPFS upload trước create | FE upload → on-chain → API register |
-| `deliverableCID` | `deliverableCID` | — | `WorkSubmitted` event |
-| `contractValue`, `deadline` | Job struct | Form tạo job | Phải khớp đơn vị USDC 6 decimals |
-| `title`, `description`, `skills` | — | MongoDB + IPFS JSON | Không có on-chain |
-| **Bids / Proposals** | `submitProposal` (optional) | `Bid` collection | Bid API = off-chain; chain optional |
-| **User profile, role** | `ReputationStore` score/tier | `User` model | Tier map 0–3 → Restricted…Trusted |
-| **Dispute chi tiết** | `ArbitratorPanel` votes, evidence hash | `Dispute` model | Indexer `DisputeSetup` / `DisputeFinalized` |
-| **Escrow balance** | `EscrowVault` + USDC | — | UI đọc `balanceOf(EscrowVault)` |
-| **Platform fee 3%** | `depositEscrow` tính on-chain | `totalDeposit` ≈ value×1.03 | Off-chain chỉ hiển thị |
+| `jobRegistryAddress` | Địa chỉ deploy | Lưu lúc tạo job | Phân biệt job sau redeploy |
+| `clientAddress` | — | Ví SIWE | Trùng `onchainClientAddress` |
+| `onchainClientAddress` | `Job.client` | Mirror sau API | Preflight `depositEscrow` |
+| `freelancerAddress` | `Job.freelancer` sau deposit | Bid accepted (tạm) | `EscrowDeposited` ghi đè |
+| `status` | `JobStatus` enum 0–7 | `Job.status` string | Indexer reconcile |
+| `metadataCID` | `jobMetadataCID` | IPFS upload trước | FE → chain → API |
+| `deliverableCID` | on-chain field | — | `WorkSubmitted` |
+| `title`, `description`, `skills` | — | MongoDB + IPFS JSON | — |
+| **Bids** | `submitProposal` optional | `Bid` collection | Bid API = off-chain |
+| **User profile** | `ReputationStore` | `User` model | Tier map |
+| **Dispute** | votes, evidence hash | `Dispute` model | Indexer sync |
+| **Escrow balance** | `EscrowVault` + USDC | — | UI `balanceOf` |
+| **Platform fee 3%** | `depositEscrow` | Display only | — |
 
 ---
 
-## Trạng thái job — đồng bộ contract ↔ BE ↔ FE
+## Trạng thái job — đồng bộ
 
 | Mã | On-chain | Backend `Job.status` | Ghi chú |
 |----|----------|----------------------|---------|
-| 0 | OPEN | OPEN | Sau accept bid DB có thể ASSIGNED **trước** deposit — chain vẫn OPEN |
-| 1 | ASSIGNED | ASSIGNED | Sau `depositEscrow` (gán FL + nạp tiền) |
+| 0 | OPEN | OPEN | Sau accept bid DB có thể ASSIGNED trước deposit |
+| 1 | ASSIGNED | ASSIGNED | Sau `depositEscrow` |
 | 2 | IN_PROGRESS | IN_PROGRESS | `startWork` |
 | 3 | SUBMITTED | SUBMITTED | `submitWork` |
 | 4 | DISPUTED | DISPUTED | `raiseDispute` |
-| 5 | COMPLETED | COMPLETED | `approveAndRelease` / timeout / dispute win FL |
-| 6 | REFUNDED | REFUNDED | `cancelContract` / dispute client win |
+| 5 | COMPLETED | COMPLETED | release / dispute win FL |
+| 6 | REFUNDED | REFUNDED | cancel / client win dispute |
 | 7 | CANCELLED | CANCELLED | `cancelOpenJob` |
 
-**FE:** `effectiveJobStatus()` và `useOnChainJob` ưu tiên trạng thái đọc từ registry.
-
-**BE:** `eventIndexer` + `getJobById` gọi `isChainStatusAhead` để kéo DB lên khi chain tiến hơn.
+**FE:** `useOnChainJob` ưu tiên chain.  
+**BE:** `isChainStatusAhead` kéo DB lên.
 
 ---
 
-## Luồng E2E đúng (Sepolia demo)
+## Dispute timings (demo — redeploy 2026-06-27)
 
-1. Client SIWE → upload IPFS → MetaMask ký `createJob` → `POST /api/jobs` (kèm `onchainJobId`).
-2. Freelancer → `POST /api/bids` (off-chain).
-3. Client → `PATCH /api/bids/:id/accept` → DB gán FL; **không** gọi `assignFreelancer`.
-4. Client **cùng ví** → mint MockUSDC (nếu cần) → `approve` + `depositEscrow(jobId, freelancer)`.
-5. Freelancer → `startWork` → `submitWork`.
-6. Client → `approveAndRelease` hoặc dispute flow.
+| Phase | Demo on-chain | Production |
+|-------|---------------|------------|
+| Evidence initial | 0 → **5 min** | 72 h |
+| Evidence rebuttal | 5 → **10 min** | 120 h |
+| Commit vote | **10 → 13 min** | 120 → 144 h |
+| Reveal vote | **13 → 16 min** | 144 → 168 h |
+| Appeal window | **30 min** | 72 h |
 
-Chi tiết: `frontend/docs/job-create-flow-vi.md`.
+**Tổng evidence window demo:** 0 → 10 phút (initial + rebuttal).
 
-### Dispute demo timings (`disputeTimings: demo` trong `deployments/sepolia.json`)
+FE: `frontend/src/lib/contracts/disputeTimings.ts`
 
-| Phase | Demo (on-chain) | Production |
-|-------|-----------------|------------|
-| Evidence initial | 15 phút | 72 giờ |
-| Rebuttal | 30 phút | 120 giờ |
-| Commit vote | 30–45 phút | 120–144 giờ |
-| Reveal vote | 45–60 phút | 144–168 giờ |
-| Appeal window | 2 giờ | 72 giờ |
+---
 
-FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
+## Redeploy implications
 
-### UI tranh chấp (2026-06-27)
+```mermaid
+flowchart TD
+  RD[Redeploy JobRegistry + EscrowVault + Panel] --> NEW[New addresses in sepolia.json]
+  NEW --> ENV[Update Railway + Vercel env]
+  NEW --> LEG[Set LEGACY_JOB_REGISTRY_ADDRESS]
+  LEG --> MIG[node migrate-job-registry-index.js]
+  NEW --> JOBS[Old on-chain jobs stay on legacy contract]
+  NEW --> DEMO[Create NEW jobs for demo]
+```
+
+| Contract | Sau redeploy |
+|----------|--------------|
+| MockUSDC | Thường **giữ** địa chỉ cũ (`USDC_ADDRESS` env) |
+| JobRegistry | **Địa chỉ mới** — job cũ không migrate |
+| EscrowVault, ArbitratorPanel | **Mới** — link lại authorized |
+| MongoDB jobs | Scope bởi `jobRegistryAddress` |
+
+---
+
+## UI tranh chấp
 
 | Panel | Ai thấy | Nội dung |
 |-------|---------|----------|
-| `DisputeEvidencePanel` | Mọi người (DISPUTED) | Danh sách bằng chứng on-chain (`getEvidences`) + off-chain (`GET /api/disputes/:id/evidences`); form nộp chỉ client/FL trong 30 phút đầu |
-| `ArbitratorDisputePanel` | Arbitrator được chọn | Commit/reveal; **tổng vote đã reveal** (`getVote` × 5); disable reveal nếu `AlreadyRevealed`; Finalize / Execute |
-| `DisputeResultPanel` | Client / freelancer | **Kết quả** (`getPendingResult`) sau finalize; countdown kháng cáo 2h; nút `fileAppeal` |
-
-Đọc contract: `ArbitratorPanel.getVote`, `getPendingResult`, `getEvidences` · `EscrowVault.fileAppeal`, `appealFiled`.
+| `DisputeEvidencePanel` | Mọi người (DISPUTED) | Evidence on-chain + off-chain hydrate |
+| `ArbitratorDisputePanel` | Arbitrator được chọn | Commit/reveal, vote tally |
+| `DisputeResultPanel` | Client / freelancer | Kết quả, appeal countdown |
 
 ---
 
-## Lỗi đã sửa (2026-06-26)
+## Địa chỉ Sepolia (canonical)
 
-### Freelancer stats (Completed / Total earned)
-
-**Triệu chứng:** Job COMPLETED on-chain nhưng dashboard hiển thị Completed 0, Total earned 0 USDC.
-
-**Nguyên nhân:** `GET /api/users/stats/:address` chỉ trả `user.stats` cache — không bao giờ được cập nhật khi `FundsReleased`.
-
-**Sửa:**
-- `freelancerStatsService.js` — tính `jobsCompleted` / `totalEarned` từ MongoDB `Job` (status `COMPLETED`, `freelancerAddress` khớp) + reconcile on-chain khi indexer chậm.
-- `eventIndexer` — `$inc` stats khi sync `FundsReleased` (số tiền chính xác từ event).
-- FE `FreelancerDashboardPage` không đổi — vẫn gọi `/api/users/stats/:address`.
-
-### raiseDispute revert không decode
-
-**Triệu nhân:** Gas cap `raiseDispute` = 400k trong khi Sepolia cần ~641k (sortition + 5 arbitrator) → OOG hiện dạng "execution reverted".
-
-**Sửa:** `contractGas.ts` min 700k / cap 900k; `useJobActions` preflight tier, pool ≥5, số dư USDC phí 2%.
-
-### Accept bid không đóng bid khác
-
-**Triệu chứng:** Job đã accept 1 bid + nạp escrow nhưng bid khác vẫn hiện "Accept bid".
-
-**Nguyên nhân:** `acceptBid` chỉ set `accepted` cho bid được chọn; job DB vẫn `OPEN` đến khi `depositEscrow` nên FE chỉ check `jobStatus !== 'OPEN'` không đủ.
-
-**Sửa:**
-- `PATCH /api/bids/:id/accept` → `updateMany` reject các bid `pending` còn lại.
-- `AcceptBidButton` + `JobDetailPage` — prop `hasAcceptedBid` ẩn nút accept trên bid khác.
-
----
-
-## Lỗi đã sửa (job creation)
-
-**Triệu chứng cũ:** Client SIWE ≠ on-chain client (INDEXER) → mint USDC vô dụng, phải đổi ví để deposit.
-
-**Sửa:** Client ký `createJob` on-chain; API chỉ register + verify. Không redeploy contract.
-
-**Race indexer:** `jobReconcile.js` vẫn adopt stub khi indexer chèn trước API.
-
----
-
-## Mismatch đã biết (không chặn demo)
-
-| Vấn đề | Mức | Hướng xử lý |
-|--------|-----|-------------|
-| Job cũ (INDEXER là client on-chain) | Thấp | Tạo job mới hoặc deposit bằng ví INDEXER |
-| DB `ASSIGNED` sau accept, chain `OPEN` | Thấp | UI dùng on-chain cho deposit; indexer sync khi deposit |
-| Stats freelancer = 0 dù job COMPLETED | **Đã sửa** | `freelancerStatsService` + indexer `FundsReleased` |
-| `raiseDispute` OOG / revert mơ hồ | **Đã sửa** | Gas 700k–900k + preflight FE |
-| Nhiều bid vẫn "Accept" sau accept | **Đã sửa** | BE reject others + `hasAcceptedBid` FE |
-| `fapex-frontend_v2` ABI tên hàm cũ | Tham chiếu | Canonical `frontend/src` |
-| `POST /api/jobs/:id/assign-freelancer` | Legacy | Chỉ job cũ; dùng `depositEscrow` cho job mới |
+| Contract | Address |
+|----------|---------|
+| MockUSDC | `0x2293193Eaa5CE5253d5e081046a06dB077f26f8e` |
+| JobRegistry | `0x302629f82d51b0972ffc3A99cbE355F4acEf908d` |
+| EscrowVault | `0x5f8C4c552F49103cA84dF455571155C8268C2aF5` |
+| ArbitratorPanel | `0x490Afc952af85aB0dEb375Bd36A65db5E1F47418` |
+| PlatformTreasury | `0x666aF0Ec040377026E0D40870Bce7c165f741530` |
+| ReputationStore | `0x5e457db6a8A44C143180043c5Bb7223C7222898E` |
+| Legacy JobRegistry | `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9` |
 
 ---
 
@@ -152,7 +129,6 @@ FE: `frontend/src/lib/contracts/disputeTimings.ts` → `DISPUTE_PHASES_DEMO`.
 | Layer | Path |
 |-------|------|
 | Contracts | `contracts/FreelanceSystem.sol`, `contracts/config/DisputeTimings.demo.sol` |
-| Backend create | `backend/src/controllers/jobController.js`, `backend/src/utils/jobReconcile.js` |
-| Indexer | `backend/src/services/blockchain/eventIndexer.js` |
-| FE create | `frontend/src/hooks/useCreateJob.ts`, `CreateJobForm.tsx` |
-| FE escrow | `frontend/src/hooks/useEscrowDeposit.ts` |
+| Backend | `backend/src/services/blockchain/eventIndexer.js`, `backend/src/utils/jobScope.js` |
+| Frontend | `frontend/src/hooks/useCreateJob.ts`, `frontend/src/hooks/useEscrowDeposit.ts` |
+| Migration | `backend/scripts/migrate-job-registry-index.js` |

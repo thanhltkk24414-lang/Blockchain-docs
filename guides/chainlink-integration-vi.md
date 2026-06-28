@@ -1,43 +1,137 @@
-# Chainlink — FAPEX (VI)
+# Chainlink — FAPEX
 
-## v1 — Price Feeds (đã triển khai)
+> **English summary:** Chainlink ETH/USD feed is documented for Sepolia but not shown live in UI. VRF sortition is deferred to v2; MVP uses `block.prevrandao` with stake gates.
 
-| Feed | Mạng | Địa chỉ |
-|------|------|---------|
-| ETH/USD | Sepolia | `0x694AA1769357215DE4FAC081bf1f309aDC325306` |
+**Cập nhật:** 2026-06-28
 
-**Frontend:** `useEthUsdPrice` đọc `latestRoundData` qua wagmi/viem.
+---
 
-- Hiển thị giá ETH trên landing và header app
-- Ước tính chi phí gas (kết hợp `formatGasWithUsd` trong tx modal)
+## Tổng quan tích hợp
 
-**Env (tùy chọn):** `VITE_ETH_USD_FEED=0x694AA1769357215DE4FAC081bf1f309aDC325306`
+```mermaid
+flowchart LR
+  subgraph v1_done [v1 — Documented]
+    FE[Frontend]
+    FE -.->|removed live read| PF[ETH/USD Price Feed Sepolia]
+  end
 
-## v1 strong — VRF sortition (deferred)
+  subgraph v1_mvp [v1 — MVP on-chain]
+    AP[ArbitratorPanel]
+    AP --> PR[block.prevrandao sortition]
+  end
 
-**Hiện tại:** `ArbitratorPanel.setupDisputePanel` chọn arbitrator bằng `block.prevrandao` (MVP, có stake gate).
+  subgraph v2 [v2 — Roadmap]
+    VRF[Chainlink VRF v2]
+    TG[The Graph optional]
+    VRF --> AP
+  end
+```
 
-**v2 đề xuất:**
+| Thành phần Chainlink | Trạng thái | Ghi chú |
+|---------------------|------------|---------|
+| **ETH/USD Price Feed** | Code có, **UI không hiển thị live** | Landing stats ghi "Oracle: Chainlink" |
+| **VRF sortition** | **Deferred v2** | Stub `contracts/chainlink/VRFSortitionStub.sol` |
+| **CCIP** | Không trong scope | — |
+| **Chainlink Functions** | Không trong scope | — |
 
-1. Deploy Chainlink VRF Coordinator trên Sepolia (subscription)
-2. `requestRandomWords` khi `raiseDispute`
-3. Callback chọn 5 arbitrator từ pool (weighted by stake)
-4. Stub contract: `contracts/chainlink/VRFSortitionStub.sol` (chưa wire production)
+---
+
+## 1. ETH/USD Price Feed (Sepolia)
+
+| Thuộc tính | Giá trị |
+|------------|---------|
+| Network | Sepolia |
+| Feed address | `0x694AA1769357215DE4FAC081bf1f309aDC325306` |
+| Env (optional) | `VITE_ETH_USD_FEED=0x694AA1769357215DE4FAC081bf1f309aDC325306` |
+
+### Đã implement (code)
+
+- `frontend/src/lib/chainlink/priceFeeds.ts` — AggregatorV3 ABI
+- Hook `useEthUsdPrice` (có thể bật lại)
+
+### Trạng thái production (2026-06)
+
+**Live ETH price feed đã gỡ khỏi UI** để:
+- Giảm RPC calls trên Vercel client
+- Tập trung scope đồ án vào escrow/dispute
+
+**Khi demo:** Giải thích feed vẫn có trên Sepolia; có thể bật lại bằng env + hook. Landing ticker vẫn mention Chainlink oracle.
+
+---
+
+## 2. VRF sortition (deferred v2)
+
+### Hiện tại (MVP)
+
+`ArbitratorPanel._selectPanel`:
 
 ```solidity
-// v2 sketch — không deploy trên Sepolia hiện tại
-interface IVRFConsumer {
+// Pseudocode
+seed = keccak256(block.prevrandao, block.timestamp, jobId, round, initiator);
+// Chọn 5 arbitrator từ pool, loại client/freelancer/round trước
+```
+
+**Bảo vệ kinh tế:** stake 50 USDC, slash no-reveal, reputation gate.
+
+### v2 đề xuất
+
+```mermaid
+sequenceDiagram
+  participant EV as EscrowVault
+  participant VRF as Chainlink VRF Coordinator
+  participant AP as ArbitratorPanel
+
+  EV->>VRF: requestRandomWords(jobId)
+  VRF-->>AP: fulfillRandomWords callback
+  AP->>AP: select 5 arbitrators weighted by stake
+```
+
+**Stub:** `contracts/chainlink/VRFSortitionStub.sol`
+
+```solidity
+interface IVRFSortitionConsumer {
     function requestArbitratorSortition(uint256 jobId) external;
+    function fulfillArbitratorSortition(uint256 jobId, uint256[] memory randomWords) external;
 }
 ```
 
-## Không nằm trong v1
+**Chưa deploy** trên Sepolia hiện tại.
 
-- CCIP cross-chain
-- Chainlink Functions (off-chain compute)
+### Tại sao chưa VRF? (Q&A)
 
-## Kiểm thử price feed
+| Lý do | Chi tiết |
+|-------|----------|
+| Độ phức tạp | Subscription LINK, callback gas, async latency |
+| Deadline đồ án | Prevrandao + stake đủ demo Sepolia |
+| Chi phí | VRF request per dispute tốn LINK testnet |
 
-1. `npm run dev` trong `frontend/`
-2. Mở `/` — badge **ETH $…** góc hero (cần RPC Sepolia)
-3. Header app (sau khi rời landing) cũng hiển thị ETH/USD
+Xem: [demo-qa-defense-vi.md](demo-qa-defense-vi.md)
+
+---
+
+## 3. Không nằm trong v1
+
+| Dịch vụ | Lý do |
+|---------|-------|
+| CCIP | Single-chain Sepolia đủ scope |
+| Functions | Evidence đã dùng IPFS + hash on-chain |
+| Automation | Manual `executeArbitrationResult` — keeper v2 |
+
+---
+
+## 4. Kiểm thử price feed (dev)
+
+```bash
+cd frontend
+# Bật VITE_ETH_USD_FEED trong .env
+npm run dev
+# Mở / — nếu hook được wire lại sẽ thấy ETH price
+```
+
+---
+
+## Tài liệu liên quan
+
+- [tech-stack-vi.md](tech-stack-vi.md)
+- [issue-audit-status-vi.md](issue-audit-status-vi.md) — CL-1, CL-2
+- [dispute-kleros-comparison-vi.md](dispute-kleros-comparison-vi.md)

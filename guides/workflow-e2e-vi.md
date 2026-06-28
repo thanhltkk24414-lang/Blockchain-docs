@@ -1,38 +1,207 @@
-# Luồng E2E — FAPEX (VI)
+# Luồng E2E nội bộ — FAPEX
 
-## 1. Client đăng job
+> **English summary:** End-to-end workflows for Client, Freelancer, Arbitrator, and backend indexer — with source-of-truth table.
 
-1. Kết nối MetaMask (Sepolia) → **Sign in (SIWE)** → `/profile` chọn role **Client**
-2. `/client` → Create job: mô tả → upload metadata IPFS (`POST /api/ipfs/upload/metadata`)
-3. On-chain `createJob(metadataCID, contractValue, duration)` — ví client ký
-4. MongoDB: job từ API + indexer đồng bộ `JobCreated`
+**Cập nhật:** 2026-06-28
 
-## 2. Freelancer bid & được chọn
+---
 
-1. Freelancer SIWE + role **Freelancer** → `/browse` tìm job
-2. `POST /api/bids` → client `PATCH /api/bids/:id/accept`
-3. Client nạp escrow: approve MockUSDC + `depositEscrow(jobId, freelancer)` — gán freelancer on-chain
+## Sơ đồ tổng thể
 
-## 3. Giao hàng
+```mermaid
+flowchart TD
+  A[SIWE Login] --> B[Register Role]
+  B --> C{Role}
+  C -->|Client| D[Create Job]
+  C -->|Freelancer| E[Browse & Bid]
+  C -->|Arbitrator| F[Stake + Join Pool]
+  D --> G[Freelancer Bids]
+  G --> H[Accept Bid DB]
+  H --> I[depositEscrow on-chain]
+  I --> J[startWork]
+  J --> K[submitWork]
+  K --> L{Client decision}
+  L -->|Approve| M[approveAndRelease]
+  L -->|Dispute| N[raiseDispute flow]
+  N --> O[evidence commit reveal finalize execute]
+```
 
-1. Freelancer `startWork` → upload file IPFS → `submitWork(jobId, deliverableCID)`
-2. CID lưu on-chain trong JobRegistry
+---
 
-## 4. Phê duyệt hoặc tranh chấp
+## 1. Authentication (SIWE → JWT)
 
-- **Happy path:** Client `approveAndRelease` → USDC cho freelancer
-- **Tranh chấp:** `raiseDispute` → evidence IPFS `submitEvidence` → arbitrator commit/reveal → `finalizeDisputeVoting` → `executeArbitrationResult`
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant FE as Frontend
+  participant API as Backend
+  participant DB as MongoDB
 
-## 5. Arbitrator
+  U->>FE: Connect MetaMask
+  FE->>API: POST /api/auth/nonce {address}
+  API->>DB: save nonce on User
+  API-->>FE: nonce + message
+  U->>FE: sign SIWE message
+  FE->>API: POST /api/auth/verify {message, signature}
+  API->>API: siwe.verify()
+  API-->>FE: JWT (7d)
+  FE->>API: Authorization Bearer JWT
+```
 
-- Stake ≥50 USDC trên `PlatformTreasury` + `joinPool`
-- Console `/arbitrator` khi stake hợp lệ
+**Files:** `backend/src/controllers/authController.js`, `frontend/src/hooks/useAuth.ts`
 
-## Nguồn sự thật
+---
 
-| Dữ liệu | Nguồn |
-|---------|--------|
-| Escrow, status job, dispute | **On-chain** |
-| Mô tả job, bids, user profile | MongoDB (cache / off-chain) |
+## 2. Client — đăng job
+
+| # | Hành động | On-chain | Off-chain |
+|---|-----------|----------|-----------|
+| 1 | Upload metadata JSON | — | `POST /api/ipfs/upload/metadata` → Pinata |
+| 2 | `createJob(metadataCID, value, duration)` | ✅ Client ký MetaMask | — |
+| 3 | Register job record | — | `POST /api/jobs` + JWT |
+| 4 | Indexer sync | Event `JobCreated` | MongoDB upsert |
+
+**Lưu ý:** `onchainClientAddress` = ví ký `createJob` (không phải INDEXER trừ relay demo).
+
+---
+
+## 3. Freelancer — bid & được chọn
+
+| # | Hành động | On-chain | Off-chain |
+|---|-----------|----------|-----------|
+| 1 | Submit bid | Optional `submitProposal` | `POST /api/bids` |
+| 2 | Client accept | — | `PATCH /api/bids/:id/accept` |
+| 3 | Reject other bids | — | `updateMany` pending → rejected |
+
+**Quan trọng:** Accept bid **không** gọi `assignFreelancer` on-chain. Freelancer được gán khi `depositEscrow(jobId, freelancerAddress)`.
+
+---
+
+## 4. Escrow & làm việc
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant EV as EscrowVault
+  participant JR as JobRegistry
+  participant F as Freelancer
+
+  C->>EV: approve MockUSDC
+  C->>EV: depositEscrow(jobId, freelancer)
+  EV->>JR: status ASSIGNED, set freelancer
+  F->>EV: startWork(jobId)
+  F->>EV: submitWork(jobId, deliverableCID)
+  Note over JR: status SUBMITTED
+```
+
+| Tx | Ai ký | Gas note |
+|----|-------|----------|
+| `depositEscrow` | Client | Approve USDC trước |
+| `startWork` | Freelancer | — |
+| `submitWork` | Freelancer | Upload IPFS → CID |
+
+---
+
+## 5. Happy path — phê duyệt
+
+| # | Tx | Kết quả |
+|---|-----|---------|
+| 1 | `approveAndRelease(jobId)` | USDC → freelancer (trừ service fee 2%) |
+| 2 | Indexer `FundsReleased` | MongoDB COMPLETED, stats freelancer |
+
+Timeout: client không phản hồi sau review period → freelancer `claimTimeoutRelease`.
+
+---
+
+## 6. Dispute flow
+
+### 6.1 Timeline demo (Sepolia hiện tại)
+
+| Phase | Thời gian | Hành động |
+|-------|-----------|-----------|
+| Evidence initial | 0–5 min | Client/Freelancer `submitEvidence` |
+| Evidence rebuttal | 5–10 min | Phản bác |
+| Commit | 10–13 min | Arbitrator `commitVote(hash)` |
+| Reveal | 13–16 min | Arbitrator `revealVote(choice, salt)` |
+| Finalize | sau 16 min | `finalizeDisputeVoting` |
+| Appeal | 30 min window | `fileAppeal` → round 2 |
+| Execute | sau appeal | `executeArbitrationResult` |
+
+### 6.2 Sequence
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant EV as EscrowVault
+  participant AP as ArbitratorPanel
+  participant A as Arbitrators x5
+
+  C->>EV: raiseDispute(jobId)
+  EV->>AP: setupDisputePanel (prevrandao sortition)
+  C->>AP: submitEvidence(ipfsHash)
+  A->>AP: commitVote
+  A->>AP: revealVote
+  C->>EV: finalizeDisputeVoting
+  C->>EV: executeArbitrationResult
+```
+
+**Điều kiện:** `poolSize ≥ 5` — `npm run seed:arbitrators`
+
+---
+
+## 7. Arbitrator workflow
+
+| # | Bước | Contract |
+|---|------|----------|
+| 1 | Mint MockUSDC | `MockUSDC.mint` |
+| 2 | Approve + stake | `PlatformTreasury.stakeAsArbitrator(50e6)` |
+| 3 | Join pool | `ArbitratorPanel.joinPool` (hoặc admin) |
+| 4 | Được chọn khi dispute | `setupDisputePanel` |
+| 5 | Vote | `commitVote` → `revealVote` |
+| 6 | No reveal penalty | Slash 5 USDC + rep −10 |
+
+Dashboard: `/arbitrator` · Job detail: `ArbitratorDisputePanel`
+
+---
+
+## 8. Backend indexer workflow
+
+```mermaid
+flowchart LR
+  CRON[cron ~2min] --> READ[read lastBlock from IndexerState]
+  READ --> LOGS[eth_getLogs batch]
+  LOGS --> PARSE[parse events]
+  PARSE --> MONGO[upsert Job Dispute User]
+  MONGO --> SOCKET[emit Socket.io]
+  PARSE --> SAVE[save lastBlock]
+```
+
+**Toggle:** `ENABLE_EVENT_INDEXER=false` — local Postman only
+
+**Chain = truth:** `isChainStatusAhead()` reconcile DB khi chain tiến hơn.
+
+---
+
+## 9. Nguồn sự thật
+
+| Dữ liệu | Authority |
+|---------|-----------|
+| Escrow balance, job status, dispute votes | **On-chain** |
+| Title, description, skills | MongoDB + IPFS |
+| Bids | MongoDB |
 | File deliverable | IPFS (CID on-chain) |
 | Reputation score | `ReputationStore` on-chain |
+| Evidence CID readable | MongoDB hydrate + IPFS gateway |
+
+Chi tiết mapping: [on-chain-off-chain-map-vi.md](on-chain-off-chain-map-vi.md)
+
+---
+
+## 10. Internal ops checklist
+
+| Sự kiện | Hành động dev |
+|---------|---------------|
+| Redeploy contracts | Update env Railway + Vercel + `migrate-job-registry-index.js` |
+| Pool empty | `npm run seed:arbitrators` |
+| ABI thay đổi | `npm run compile` (auto export) |
+| CORS preview fail | Thêm `https://*.vercel.app` Railway |
