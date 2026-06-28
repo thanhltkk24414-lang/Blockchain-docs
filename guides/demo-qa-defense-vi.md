@@ -155,12 +155,29 @@ Cần Sepolia ETH trên deployer wallet (`contracts/.env` `PRIVATE_KEY`).
 
 | Câu hỏi | Trả lời ngắn |
 |---------|--------------|
-| Admin có quyền gì? | `setPaused`, `adminForceResolve` khi quorum fail |
+| Admin có quyền gì? | On-chain: `setPaused`, `grantRole`/`revokeRole`, `joinPool`, `adminForceResolve`. UI tại **`/admin`** (hook `useAdminAccess` đọc `admin()` + delegated roles) |
 | Reentrancy? | CEI pattern; USDC không callback |
 | Front-running vote? | Commit–reveal che choice đến reveal phase |
 | Sybil arbitrator? | Stake 50 USDC + reputation gate |
 | Indexer lag? | Poll ~2 phút; UI đọc on-chain khi cần |
 | Reviews? | API placeholder — chưa production |
+
+---
+
+## H. Admin dashboard (`/admin`)
+
+**Câu hỏi:** Có giao diện quản trị không? Ai được vào?
+
+**Trả lời:**
+
+1. Route **`/admin`** — chỉ hiện nav **Admin** khi ví có quyền on-chain.
+2. **Access guard:** `EscrowVault.admin()`, `ArbitratorPanel.admin()`, deployer trong `deployments/sepolia.json`, hoặc delegated roles (`ROLE_PAUSER`, `ROLE_FORCE_RESOLVER`, `ROLE_ARBITRATOR_MANAGER`).
+3. **Không có off-chain admin RBAC** — Mongo enum `admin` không dùng; demo trung thực: quyền tài chính/khẩn cấp nằm trên contract.
+4. **Panels:** contract addresses (copy), pause/unpause, grant/revoke roles, arbitrator pool + `joinPool`, force resolve (cảnh báo), stats từ `GET /api/admin/stats` (job counts, indexer `lastBlock`).
+5. **Tx pattern:** `simulateContract` + `sendTransaction` (tránh lỗi MetaMask RPC).
+6. **Demo wallet:** deployer `0x523eBd853a1638065f148A05c0Ca423E490D92f7` trên Sepolia.
+
+**One-liner:** *"Governance is wallet-gated on-chain; the dashboard is a thin UI over existing admin functions, not a custodial backdoor."*
 
 ---
 
