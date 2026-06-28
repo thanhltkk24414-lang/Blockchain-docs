@@ -153,6 +153,20 @@ Cần Sepolia ETH trên deployer wallet (`contracts/.env` `PRIVATE_KEY`).
 
 ## F. Bảo mật & hạn chế thành thật
 
+### Force resolve vs thao túng
+
+**Câu hỏi:** Admin có thể “chọn người thắng” tranh chấp không? Force resolve có phải backdoor?
+
+**Trả lời (demo script):**
+
+1. **Luồng chuẩn (99% case):** Client `raiseDispute` → 5 arbitrator sortition → evidence → commit–reveal → **≥3 vote** → bất kỳ ai gọi `finalizeDisputeVoting` → `executeArbitrationResult`. Admin **không** set outcome.
+2. **Force resolve = fallback quorum fail:** Chỉ khi sau cửa reveal vẫn **&lt;3** vote hợp lệ (`InsufficientQuorum` nếu ai đó thử finalize). Hợp đồng emit `AdminForceResolved` — công khai trên Etherscan.
+3. **UI minh bạch (`/admin`):** Panel force resolve **tắt nút** nếu job chưa DISPUTED, reveal chưa hết, hoặc đã đủ quorum; hiển thị phase, reveal count, danh sách arbitrator; bắt checkbox + gõ `FORCE` trước submit.
+4. **Thành thật MVP:** Bytecode vẫn cho admin gọi `adminForceResolve` khi job DISPUTED (chưa thêm guard quorum on-chain — tránh redeploy). Lớp tin cậy = UI + docs + audit log + **roadmap multisig/timelock**.
+5. **Production:** `transferAdmin` → Safe multisig; `ROLE_FORCE_RESOLVER` chỉ grant cho multisig; rationale khẩn cấp công bố trước tx.
+
+**One-liner:** *“Arbitrators quyết định tranh chấp; admin chỉ dọn đống quorum fail — và mọi lần dọn đều có event on-chain.”*
+
 | Câu hỏi | Trả lời ngắn |
 |---------|--------------|
 | Admin có quyền gì? | On-chain: `setPaused`, `grantRole`/`revokeRole`, `joinPool`, `adminForceResolve`. UI tại **`/admin`** (hook `useAdminAccess` đọc `admin()` + delegated roles) |
@@ -173,7 +187,7 @@ Cần Sepolia ETH trên deployer wallet (`contracts/.env` `PRIVATE_KEY`).
 1. Route **`/admin`** — chỉ hiện nav **Admin** khi ví có quyền on-chain.
 2. **Access guard:** `EscrowVault.admin()`, `ArbitratorPanel.admin()`, deployer trong `deployments/sepolia.json`, hoặc delegated roles (`ROLE_PAUSER`, `ROLE_FORCE_RESOLVER`, `ROLE_ARBITRATOR_MANAGER`).
 3. **Không có off-chain admin RBAC** — Mongo enum `admin` không dùng; demo trung thực: quyền tài chính/khẩn cấp nằm trên contract.
-4. **Panels:** contract addresses (copy), pause/unpause, grant/revoke roles, arbitrator pool + `joinPool`, force resolve (cảnh báo), stats từ `GET /api/admin/stats` (job counts, indexer `lastBlock`).
+4. **Panels:** contract addresses (copy), **How governance works** (normal vs emergency), pause/unpause (modal confirm), grant/revoke roles (cảnh báo force_resolver + role holders), arbitrator pool + `joinPool`, force resolve (đọc on-chain + gõ `FORCE`), stats từ `GET /api/admin/stats`.
 5. **Tx pattern:** `simulateContract` + `sendTransaction` (tránh lỗi MetaMask RPC).
 6. **Demo wallet:** deployer `0x523eBd853a1638065f148A05c0Ca423E490D92f7` trên Sepolia.
 
@@ -191,5 +205,6 @@ Cần Sepolia ETH trên deployer wallet (`contracts/.env` `PRIVATE_KEY`).
 
 - [demo-script-vi.md](demo-script-vi.md)
 - [demo-seed-data-vi.md](demo-seed-data-vi.md)
+- [admin-cheatsheet-vi.md](admin-cheatsheet-vi.md)
 - [on-chain-off-chain-map-vi.md](on-chain-off-chain-map-vi.md)
 - [issue-audit-status-vi.md](issue-audit-status-vi.md)
