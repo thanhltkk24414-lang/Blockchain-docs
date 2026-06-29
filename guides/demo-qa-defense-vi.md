@@ -101,6 +101,60 @@ Production: 72h / 120h / 144h / 168h / appeal 72h (`DisputeTimings.prod.sol`).
 
 **Trả lời:** Xem [dispute-kleros-comparison-vi.md](dispute-kleros-comparison-vi.md). Tóm tắt: không có coherent vote penalty, appeal 1 vòng, manual execute, admin force resolve khi quorum fail.
 
+### Q14b: `finalizeDisputeVoting` revert khi &lt;3 reveal — có đúng không?
+
+**Trả lời:** **Đúng — đây là hành vi on-chain mong đợi.** Sau cửa reveal, contract đếm vote hợp lệ (FREELANCER_WIN / CLIENT_WIN / SPLIT). Nếu `validVotes < MIN_QUORUM` (3) → `revert InsufficientQuorum()` (selector `0x50884582`). UI arbitrator **tắt nút Finalize** khi chưa đủ 3 reveal; hiển thị link [`/admin#quorum-failed`](/admin#quorum-failed).
+
+**Cơ chế demo khi quorum fail:**
+1. Chỉ 1–2 arbitrator reveal (hoặc commit nhưng không reveal → bị slash 5 USDC + reputation −10).
+2. Sau phút 16 (demo timing), bất kỳ ai gọi finalize → revert `InsufficientQuorum`.
+3. Admin ví có `ROLE_FORCE_RESOLVER` mở **`/admin` → Quorum failed** → `adminForceResolve` + event `AdminForceResolved` trên Etherscan.
+
+**One-liner:** *Quorum fail không phải bug — đó là lúc governance khẩn cấp thay thế panel.*
+
+### Q14c: Pauser / Force resolver có nhận USDC như arbitrator không?
+
+**Trả lời:** **Không.** Pauser (`ROLE_PAUSER`) và Force resolver (`ROLE_FORCE_RESOLVER`) là **vai trò vận hành / governance** — không có payout USDC trực tiếp trong bytecode.
+
+| Vai trò | Thu nhập on-chain |
+|---------|-------------------|
+| **Arbitrator** (vote đúng đa số) | Nhận phần **50% dispute fee** chia đều cho arbitrator vote trùng kết quả (`_rewardCorrectArbitrators` → `PlatformTreasury.rewardArbitrator`) |
+| **Arbitrator** (commit, không reveal) | **Slash 5 USDC** stake + reputation **−10** |
+| **Pauser** | Không — chỉ `setPaused` khẩn cấp |
+| **Force resolver** | Không — chỉ `adminForceResolve` khi quorum fail |
+| **Platform** | 3% deposit fee + phần dispute fee còn lại vào `PlatformTreasury` |
+
+Arbitrator còn cần **stake ≥50 USDC** để vào pool; unstake bị chặn khi `activeDisputeCount > 0`.
+
+### Q14d: Điểm reputation hoạt động thế nào? (`ReputationStore.sol`)
+
+**Trả lời:**
+
+**Điểm mặc định:** Ví chưa khởi tạo → **100 điểm** (`getScore`).
+
+**Tăng điểm (authorized contracts gọi `updateScore(user, true, amount)`):**
+| Sự kiện | Điểm |
+|---------|------|
+| Freelancer thắng dispute / release bình thường | **+10** (freelancer) |
+| Client thắng hoặc approve release | **+5** (client) |
+
+**Giảm điểm (`updateScore(user, false, amount)`):**
+| Sự kiện | Điểm |
+|---------|------|
+| Freelancer thua dispute (client refund) | **−15** |
+| Arbitrator commit nhưng không reveal | **−10** |
+
+**4 tầng (`getTier`):**
+
+| Tier | Điểm | Hệ quả demo |
+|------|------|-------------|
+| **Restricted** | &lt; 50 | Không `createJob` (client) |
+| **Warning** | 50–79 | Không bid / không `raiseDispute` |
+| **Normal** | 80–119 | Đủ điều kiện bid, dispute, **join arbitrator pool** (`MIN_SCORE = 80`) |
+| **Trusted** | ≥ 120 | Tier cao nhất |
+
+**One-liner:** *Reputation là cổng on-chain — không phải token; arbitrator cần ≥80 + stake 50 USDC.*
+
 ---
 
 ## D. Chainlink & oracle
