@@ -2,7 +2,7 @@
 
 > **English summary:** User guide for Client/Freelancer/Arbitrator roles on Sepolia, plus developer setup for local monorepo.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
@@ -60,7 +60,7 @@
 | 4 | Khi được sortition chọn → `/arbitrator` hoặc job detail |
 | 5 | **Commit** → **Reveal** vote trong cửa sổ thời gian |
 
-Pool cần **≥5** member để `raiseDispute` hoạt động.
+Pool cần **≥5** member để `raiseDispute`; **≥10** nếu demo **appeal** vòng 2 (`npm run check:dispute`).
 
 ### A.6 Platform admin (governance dashboard)
 
@@ -185,7 +185,9 @@ Cập nhật `JOB_REGISTRY_ADDRESS` trên Railway + Vercel env.
 | Wallet mismatch banner | Đổi MetaMask sang đúng ví on-chain |
 | JobRegistry mismatch | Đồng bộ env với `deployments/sepolia.json` |
 | CORS error trên Vercel | Railway `ALLOWED_ORIGINS` có `https://*.vercel.app` |
-| raiseDispute revert | `npm run check:dispute` — pool ≥5, đủ USDC fee |
+| raiseDispute revert | `npm run check:dispute` — pool ≥5 (≥10 appeal), đủ USDC fee |
+| Appeal revert NotEnoughArbitrators | Seed thêm arbitrator — pool ≥10 |
+| FL không nộp deliverable | ASSIGNED 72h → `cancelContract`; IN_PROGRESS → `raiseDispute` |
 | Indexer chậm | Đợi ~2 phút hoặc refresh; UI đọc chain trực tiếp |
 
 ---

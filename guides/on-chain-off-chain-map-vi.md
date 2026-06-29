@@ -2,7 +2,7 @@
 
 > **English summary:** Data authority map — what lives on Sepolia contracts vs MongoDB vs IPFS, including post-redeploy JobRegistry scoping.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 **JobRegistry hiện tại:** `0x302629f82d51b0972ffc3A99cbE355F4acEf908d`  
 **Legacy JobRegistry:** `0xE5425cFE21BAe73d54138Bb290B671bF4c55FBC9`
@@ -36,7 +36,7 @@ Frontend: `WalletMismatchBanner` khi MetaMask ≠ party on-chain.
 | `status` | `JobStatus` enum 0–7 | `Job.status` string | Indexer reconcile |
 | `metadataCID` | `jobMetadataCID` | IPFS upload trước | FE → chain → API |
 | `deliverableCID` | on-chain field | — | `WorkSubmitted` |
-| `title`, `description`, `skills` | — | MongoDB + IPFS JSON | — |
+| `deadline` | `Job.deadline` (lưu) | Display | **Không enforce** `submitWork` — xem platform-mechanisms |
 | **Bids** | `submitProposal` optional | `Bid` collection | Bid API = off-chain |
 | **User profile** | `ReputationStore` | `User` model | Tier map |
 | **Dispute** | votes, evidence hash | `Dispute` model | Indexer sync |

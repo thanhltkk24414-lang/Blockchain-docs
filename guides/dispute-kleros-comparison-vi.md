@@ -26,8 +26,12 @@ raiseDispute (EscrowVault, phí 2% cap 50 USDC)
   → commitVote (10–13 min demo) → revealVote (13–16 min)
   → finalizeDisputeVoting: slash no-reveal, tally
   → [optional] fileAppeal → round 2 (appeal window 30 min demo)
-  → executeArbitrationResult: payout + reward arbitrator đúng kết quả
+  → executeArbitrationResult: payout + reward arbitrator đúng kết quả (trừ SPLIT)
 ```
+
+**SPLIT 50-50:** `_splitAndPayout(50%)` — escrow chia đôi; dispute fee 50% hoàn initiator, **không** reward arb. Xem [platform-mechanisms-vi.md](platform-mechanisms-vi.md).
+
+**Appeal pool:** khuyến nghị **≥10** arbitrator (loại 5 vòng 1).
 
 **Timing demo Sepolia (redeploy 2026-06-27):** evidence 0–10 min, commit 10–13, reveal 13–16, appeal 30 min. Xem `demo-seed-data-vi.md` và `DisputeTimings.demo.sol`.
 

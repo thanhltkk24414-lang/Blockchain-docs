@@ -2,7 +2,7 @@
 
 > **English summary:** ~15-minute live demo script on Sepolia — wallets, timing, seed commands, and talking points.
 
-**Thời lượng:** 12–18 phút · **Mạng:** Sepolia · **Cập nhật:** 2026-06-28
+**Thời lượng:** ~15 phút · **Mạng:** Sepolia · **Cập nhật:** 2026-06-30
 
 ---
 
@@ -21,7 +21,7 @@
 ```bash
 # Từ monorepo root — cần PRIVATE_KEY + SEPOLIA_RPC trong contracts/.env
 npm run seed:arbitrators
-npm run check:dispute          # poolSize phải ≥ 5
+npm run check:dispute          # poolSize ≥ 5 (dispute); ≥ 10 nếu demo appeal
 ```
 
 Nếu deployer hết ETH: `npm run join:arbitrators`
@@ -138,7 +138,20 @@ Private keys seed: `deployments/sepolia-arbitrators.json` (gitignored)
 2. Cả hai party → submit evidence (show IPFS panel)
 3. Wallet C → `/arbitrator` → commit + reveal (giải thích commit–reveal chống copy)
 4. **Nếu không đủ thời gian live:** show Etherscan tx đã record + UI phase stepper
-5. Finalize → show kết quả FREELANCER_WIN / CLIENT_WIN / SPLIT
+5. Finalize → show kết quả FREELANCER_WIN / CLIENT_WIN / **SPLIT 50-50**
+6. **SPLIT talking point:** escrow chia đôi — FL 50% (trừ fee), client nhận phần còn lại; dispute fee 50% hoàn initiator, **không** thưởng arbitrator
+
+### 5C. Nhánh appeal (nếu còn thời gian + pool ≥10)
+
+| Bước | Hành động | Nói |
+|------|-----------|-----|
+| 1 | Sau finalize vòng 1 | Cửa sổ **30 phút** |
+| 2 | Party thua → `fileAppeal` | Phí **1.3×** dispute fee — approve USDC trước |
+| 3 | Panel mới 5 arbitrator | Loại toàn bộ arb vòng 1 — cần pool **≥10** |
+| 4 | Lặp evidence → vote → finalize vòng 2 | Không vòng 3 |
+| 5 | `executeArbitrationResult` | Kết quả vòng 2 là final |
+
+Pre-record clip nếu không đủ 30+ phút live.
 
 ---
 

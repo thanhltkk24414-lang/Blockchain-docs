@@ -22,7 +22,7 @@ npm run check:dispute
 
 | Actor | Việc thường | Khẩn cấp |
 |-------|-------------|----------|
-| Client / Freelancer | escrow, evidence | `fileAppeal` (1 vòng) |
+| Client / Freelancer | escrow, evidence | `fileAppeal` (1 vòng, pool **≥10**) |
 | 5 Arbitrators | commit → reveal | — |
 | Anyone | finalize + execute sau timer | — |
 | Pauser | — | `setPaused` |
@@ -39,6 +39,7 @@ npm run check:dispute
 2. Chờ phase timer (demo: evidence 0–10m, commit 10–13m, reveal 13–16m).
 3. ≥3 arbitrator reveal → `finalizeDisputeVoting` → `executeArbitrationResult`.
 4. **Không mở** force resolve panel trừ khi cố tình demo quorum fail.
+5. **SPLIT:** majority hòa / vote SPLIT → escrow 50–50, không thưởng arb.
 
 ---
 
@@ -82,4 +83,5 @@ npm run check:dispute
 
 - [demo-qa-defense-vi.md](demo-qa-defense-vi.md) — mục *Force resolve vs thao túng*
 - [contract-interaction.md](contract-interaction.md)
-- Frontend copy: `frontend/docs/admin-roles-vi.md`
+- [admin-roles-vi.md](admin-roles-vi.md)
+- [platform-mechanisms-vi.md](platform-mechanisms-vi.md)

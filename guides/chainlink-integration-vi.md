@@ -2,7 +2,7 @@
 
 > **English summary:** Chainlink ETH/USD feed is documented for Sepolia but not shown live in UI. VRF sortition is deferred to v2; MVP uses `block.prevrandao` with stake gates.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 

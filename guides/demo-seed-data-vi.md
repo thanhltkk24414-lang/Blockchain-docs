@@ -2,7 +2,7 @@
 
 > **English summary:** Sepolia demo setup — two-wallet flow, arbitrator seeding, dispute timings, and current contract addresses.
 
-**Cập nhật:** 2026-06-28 · Redeploy: 2026-06-27 (`disputeTimings: demo`)
+**Cập nhật:** 2026-06-30 · Redeploy: 2026-06-27 (`disputeTimings: demo`)
 
 ---
 
@@ -118,11 +118,13 @@ npm run deploy:sepolia                         # auto demo
 
 | Yêu cầu | Giá trị |
 |---------|---------|
-| `ArbitratorPanel.poolSize` | ≥ **5** |
+| `ArbitratorPanel.poolSize` | ≥ **5** (raiseDispute) |
+| Pool cho appeal vòng 2 | ≥ **10** (loại 5 arb vòng 1) |
 | Stake mỗi arbitrator | ≥ 50 USDC |
 | Reputation | ≥ 80 (default 100) |
 | Job status | **SUBMITTED** hoặc **IN_PROGRESS** |
 | Dispute fee | 2% contract value, cap 50 USDC |
+| Appeal fee | **1.3×** dispute fee (`fileAppeal`) |
 
 ---
 

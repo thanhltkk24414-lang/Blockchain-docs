@@ -2,7 +2,7 @@
 
 > **English summary:** End-to-end workflows for Client, Freelancer, Arbitrator, and backend indexer — with source-of-truth table.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
@@ -109,7 +109,17 @@ sequenceDiagram
 | 1 | `approveAndRelease(jobId)` | USDC → freelancer (trừ service fee 2%) |
 | 2 | Indexer `FundsReleased` | MongoDB COMPLETED, stats freelancer |
 
-Timeout: client không phản hồi sau review period → freelancer `claimTimeoutRelease`.
+Timeout: client không phản hồi sau review period → **bất kỳ ai** gọi `claimTimeoutRelease` (permissionless).
+
+### 4b. Freelancer không nộp deliverable
+
+| Trạng thái | Hành động client |
+|------------|------------------|
+| ASSIGNED, FL không `startWork` sau **72h** | `cancelContract` — hoàn full deposit |
+| IN_PROGRESS, chưa `submitWork` | `raiseDispute` (không có auto-refund theo `deadline`) |
+| SUBMITTED, không phản hồi **7 ngày** | Chờ hoặc `claimTimeoutRelease` |
+
+`deadline` từ `createJob` **không** enforce trong `submitWork`. Chi tiết: [platform-mechanisms-vi.md](platform-mechanisms-vi.md).
 
 ---
 
@@ -127,7 +137,17 @@ Timeout: client không phản hồi sau review period → freelancer `claimTimeo
 | Appeal | 30 min window | `fileAppeal` → round 2 |
 | Execute | sau appeal | `executeArbitrationResult` |
 
-### 6.2 Sequence
+**Pool:** disputes cần **≥5**; appeals khuyến nghị **≥10** (loại arb vòng 1).
+
+### 6.3 Kết quả SPLIT 50-50
+
+Khi majority = SPLIT (hoặc hòa FL/Client): `executeArbitrationResult` → `_splitAndPayout(50%)` + `_handleSplitDisputeFee` (50% fee hoàn initiator, không thưởng arb).
+
+### 6.4 Appeal
+
+`fileAppeal` → phí **1.3×** → `startAppealRound` (5 arb mới) → lặp timeline → execute sau finalize vòng 2.
+
+### 6.5 Sequence
 
 ```mermaid
 sequenceDiagram

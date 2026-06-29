@@ -3,7 +3,7 @@
 > Tài liệu chính thức FAPEX — Web3 freelance escrow trên Sepolia.  
 > **English:** See [overview-vi.md](guides/overview-vi.md) for project summary.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
@@ -16,6 +16,8 @@
 | [**Manual**](guides/manual-vi.md) | Hướng dẫn user + dev local |
 | [**Demo script**](guides/demo-script-vi.md) | Kịch bản thuyết trình ~15 phút |
 | [**Q&A phòng vấn**](guides/demo-qa-defense-vi.md) | FAQ hội đồng / demo |
+| [**Cơ chế nền tảng**](guides/platform-mechanisms-vi.md) | SPLIT, appeal, deadline, reputation |
+| [**Governance roles**](guides/admin-roles-vi.md) | Admin, pauser, force resolver, applications |
 
 ---
 
@@ -39,7 +41,9 @@
 | [Contract interaction](guides/contract-interaction.md) | Địa chỉ Sepolia, luồng on-chain |
 | [Deploy backend (Railway)](guides/deploy-backend.md) | Docker, env, Socket.io |
 | [SIWE + JWT auth](guides/auth-api.md) | Wallet login API |
-| [Demo seed data](guides/demo-seed-data-vi.md) | `seed:arbitrators`, hai ví, timings |
+| [Admin cheatsheet](guides/admin-cheatsheet-vi.md) | 1 trang demo governance |
+| [Admin roles](guides/admin-roles-vi.md) | Job descriptions chi tiết |
+| [Demo seed data](guides/demo-seed-data-vi.md) | `seed:arbitrators`, pool ≥10 appeal, timings |
 | [Ma trận audit](guides/issue-audit-status-vi.md) | Issue status SC/BE/FE/CL |
 
 ---

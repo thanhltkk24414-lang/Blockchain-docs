@@ -2,7 +2,7 @@
 
 > **English summary:** Academic-style project report outline for a Web3 freelance escrow platform on Sepolia, covering motivation, architecture, implementation, security, demo results, and future work.
 
-**Đồ án / Khóa luận · Cập nhật:** 2026-06-28
+**Đồ án / Khóa luận · Cập nhật:** 2026-06-30
 
 ---
 
@@ -68,6 +68,12 @@ flowchart TB
   Sepolia -->|events| API
   API -->|Socket.io| FE
 ```
+
+### 3.3 Cơ chế đặc biệt
+
+- **SPLIT 50-50:** escrow chia đôi; không thưởng arbitrator — [platform-mechanisms-vi.md](platform-mechanisms-vi.md)
+- **Appeal:** 1 vòng, phí 1.3×, pool ≥10
+- **Governance:** pauser / force resolver không nhận USDC — [admin-roles-vi.md](admin-roles-vi.md)
 
 ### 3.2 Smart contracts
 

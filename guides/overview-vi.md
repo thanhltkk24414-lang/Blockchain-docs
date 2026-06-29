@@ -2,7 +2,7 @@
 
 > **English summary:** FAPEX is a Web3 freelance escrow dApp on Ethereum Sepolia. Clients fund jobs in MockUSDC; freelancers deliver via IPFS; disputes are resolved by a staked arbitrator panel with commit–reveal voting. A Node.js backend caches chain events in MongoDB and proxies IPFS uploads; the React frontend uses wagmi + SIWE for wallet-native UX.
 
-**Cập nhật:** 2026-06-28 · **Mạng:** Sepolia (chainId `11155111`)
+**Cập nhật:** 2026-06-30 · **Mạng:** Sepolia (chainId `11155111`)
 
 ---
 
@@ -107,4 +107,6 @@ Chi tiết: [workflow-e2e-vi.md](workflow-e2e-vi.md)
 | [manual-vi.md](manual-vi.md) | Hướng dẫn user + dev local |
 | [demo-script-vi.md](demo-script-vi.md) | Kịch bản thuyết trình ~15 phút |
 | [demo-qa-defense-vi.md](demo-qa-defense-vi.md) | FAQ phòng vấn hội đồng |
+| [platform-mechanisms-vi.md](platform-mechanisms-vi.md) | SPLIT, appeal, no-deliverable, reputation |
+| [admin-roles-vi.md](admin-roles-vi.md) | Governance roles chi tiết |
 | [project-report-vi.md](project-report-vi.md) | Outline báo cáo đồ án |

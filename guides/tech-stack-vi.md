@@ -2,7 +2,7 @@
 
 > **English summary:** Layered stack — Solidity/Hardhat on Sepolia, Node/Express + MongoDB indexer, React 19 + wagmi frontend. Chainlink Price Feed is documented but not shown live in UI (v2: VRF sortition).
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
