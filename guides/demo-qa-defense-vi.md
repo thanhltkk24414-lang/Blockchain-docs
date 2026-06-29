@@ -4,7 +4,7 @@
 
 **Dùng khi:** Hội đồng chấm đồ án, demo live Q&A, review GitHub.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
@@ -158,6 +158,73 @@ Arbitrator còn cần **stake ≥50 USDC** để vào pool; unstake bị chặn 
 | **Trusted** | ≥ 120 | Tier cao nhất |
 
 **One-liner:** *Reputation là cổng on-chain — không phải token; arbitrator cần ≥80 + stake 50 USDC.*
+
+### Q14e: Hòa phiếu / đa số vote SPLIT 50-50 — escrow đi đâu?
+
+**Trả lời:** Sau `finalizeDisputeVoting`, nếu không có lựa chọn nào **strict majority** (ví dụ hòa FL–Client, hoặc đa số chọn SPLIT), kết quả = `SPLIT_50_50`.
+
+`executeArbitrationResult` gọi `_splitAndPayout(jobId, 50)`:
+
+| Bên | Nhận |
+|-----|------|
+| Freelancer | **50%** contract value (trừ service fee 2% trên phần đó) |
+| Client | Phần còn lại từ tổng đã nạp (`contractValue × 1.03` − phần FL) |
+| Platform | Fee trên phần FL → Treasury |
+| Job status | `COMPLETED` |
+| Dispute fee | **50%** hoàn initiator, **50%** Treasury — **không** thưởng arbitrator |
+
+Chi tiết: [platform-mechanisms-vi.md](platform-mechanisms-vi.md#32-escrow-khi-executearbitrationresult--split).
+
+### Q14f: Appeal vòng 2 — pool 10, phí 1.3×?
+
+**Trả lời:**
+
+- `fileAppeal` thu **1.3×** dispute fee gốc (`APPEAL_FEE_NUM/DEN = 130/100`).
+- `startAppealRound` loại **5 arbitrator vòng 1** → cần **≥10** người trong pool thực tế (`npm run check:dispute` warn nếu `<10`).
+- Vòng 2: evidence → commit → reveal → finalize lại; **không** vòng 3.
+- Sau finalize vòng 2: `executeArbitrationResult` (không cần chờ appeal thêm).
+
+### Q14g: Freelancer không nộp deliverable — có deadline on-chain không?
+
+**Trả lời:**
+
+| Tình huống | On-chain |
+|------------|----------|
+| `deadline` trong `createJob` | **Lưu** nhưng **không enforce** trong `submitWork` |
+| ASSIGNED, FL không `startWork` sau **72h** | Client `cancelContract` — hoàn full deposit (permissionless) |
+| IN_PROGRESS, chưa `submitWork` | **Không** auto-refund. Client có thể `raiseDispute` (status IN_PROGRESS hợp lệ) |
+| SUBMITTED, client im lặng **7 ngày** | Ai cũng `claimTimeoutRelease` → FL nhận tiền |
+
+Không có `deliverableCID` → không `approveAndRelease`. File trên IPFS qua backend **không** thay thế `submitWork` on-chain.
+
+Chi tiết: [platform-mechanisms-vi.md](platform-mechanisms-vi.md#5-freelancer-không-nộp-deliverable-đúng-hạn).
+
+### Q14h: Governance roles — ai làm gì? Có kiếm USDC không?
+
+**Trả lời:** Xem [admin-roles-vi.md](admin-roles-vi.md).
+
+| Role | Việc chính | USDC? |
+|------|------------|-------|
+| Contract admin | `grantRole`, `transferAdmin`, seed pool | Không từ dispute |
+| ROLE_PAUSER | `setPaused` khẩn cấp | **Không** |
+| ROLE_FORCE_RESOLVER | `adminForceResolve` quorum fail | **Không** |
+| ROLE_ARBITRATOR_MANAGER | `joinPool` hộ người khác | **Không** |
+| Arbitrator | commit/reveal | **Có** (50% fee / đúng vote; không khi SPLIT) |
+
+Đăng ký: Profile → API application → admin `grantRole` / `joinPool` on-chain.
+
+### Q14i: Browse job đang tranh chấp?
+
+**Trả lời:** `/browse` — filter status **DISPUTED** (hoặc badge “Dispute” trên JobCard). MongoDB sync từ indexer; confirm on-chain `JobStatus.DISPUTED` (4). Search API: truyền `status=DISPUTED` nếu cần.
+
+### Q14j: SIWE multi-domain — MetaMask cảnh báo domain?
+
+**Trả lời:** SIWE message `domain` phải khớp **hostname frontend** (Vercel), không phải Railway API.
+
+- Frontend ký với `window.location.host`.
+- Railway: `SIWE_DOMAIN=your-app.vercel.app` (không `https://`).
+- `APP_URL=https://your-app.vercel.app`
+- Nhiều preview Vercel: cấu hình `SIWE_DOMAIN` theo production URL chính; dev dùng `localhost`.
 
 ---
 

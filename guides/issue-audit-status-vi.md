@@ -1,6 +1,6 @@
 # Ma trận audit issue — FAPEX
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 > **English summary:** Issue tracking matrix from security/architecture audit — done items and v2 deferrals.
 
@@ -27,7 +27,7 @@
 | CL-1 | ETH/USD price feed | **Done (code) / UI off** | Feed Sepolia documented; live price removed from UI Jun 2026 |
 | CL-2 | VRF sortition | **Deferred v2** | `prevrandao` MVP + `VRFSortitionStub.sol` |
 | Brand | Landing + logos | **Done** | `/`, `fapex-icon.svg`, `fapex-wordmark.svg` |
-| DOC | Comprehensive docs | **Done** | guides/*, READMEs, Q&A defense Jun 2026 |
+| DOC | Comprehensive docs | **Done** | guides/*, platform-mechanisms, admin-roles, Q&A Jun 2026 |
 
 ---
 
@@ -50,7 +50,7 @@
 - [x] Frontend Vercel + CORS wildcard
 - [x] Sepolia contracts synced `deployments/sepolia.json`
 - [x] Demo dispute timings (5/10/13/16 min + appeal 30 min)
-- [x] `npm run seed:arbitrators` documented
+- [x] Pool appeal ≥10 documented (`check-dispute-demo.js`)
 - [x] Legacy registry `0xE5425…` documented
 
 ---

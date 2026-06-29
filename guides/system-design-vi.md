@@ -2,7 +2,7 @@
 
 > **English summary:** Three-tier Web3 dApp — React client, Express indexer/API on Railway, six Solidity contracts on Sepolia. MongoDB caches events; IPFS stores files; Socket.io pushes updates.
 
-**Cập nhật:** 2026-06-28
+**Cập nhật:** 2026-06-30
 
 ---
 
