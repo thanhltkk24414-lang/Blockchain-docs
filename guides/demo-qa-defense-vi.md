@@ -105,6 +105,10 @@ Production: 72h / 120h / 144h / 168h / appeal 72h (`DisputeTimings.prod.sol`).
 
 **Trả lời:** **Đúng — đây là hành vi on-chain mong đợi.** Sau cửa reveal, contract đếm vote hợp lệ (FREELANCER_WIN / CLIENT_WIN / SPLIT). Nếu `validVotes < MIN_QUORUM` (3) → `revert InsufficientQuorum()` (selector `0x50884582`). UI arbitrator **tắt nút Finalize** khi chưa đủ 3 reveal; hiển thị link [`/admin#quorum-failed`](/admin#quorum-failed).
 
+### Q14b2: Finalize revert `0x3483eb63` dù đã có 3 reveal — có phải bug?
+
+**Trả lời:** **Không — đó là `VotingStillActive()`.** Contract chỉ cho `finalizeDisputeVoting` khi `block.timestamp > createdAt + REVEAL_END` (demo: **sau** phút 16, không phải đúng giây thứ 16). Trong giây cuối của cửa reveal vẫn reveal được nhưng finalize sẽ revert. UI arbitrator **tắt Finalize** và hiển thị countdown tới khi cửa reveal đóng hẳn on-chain.
+
 **Cơ chế demo khi quorum fail:**
 1. Chỉ 1–2 arbitrator reveal (hoặc commit nhưng không reveal → bị slash 5 USDC + reputation −10).
 2. Sau phút 16 (demo timing), bất kỳ ai gọi finalize → revert `InsufficientQuorum`.
