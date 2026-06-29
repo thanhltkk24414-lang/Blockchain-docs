@@ -26,6 +26,8 @@
 3. **Sign in (SIWE)** — ký message EIP-4361 (không password)
 4. `/profile` — đặt username, chọn role **Client** hoặc **Freelancer**
 
+**MetaMask domain warning:** SIWE message `domain` phải trùng hostname frontend (ví dụ `frontend-smoky-eight-51.vercel.app`), **không** dùng domain Railway API. Frontend ký với `window.location.host`; Railway backend set `SIWE_DOMAIN` và `APP_URL` trùng Vercel (xem B.5).
+
 ### A.3 Client
 
 | Bước | Hành động | Route |
@@ -153,9 +155,11 @@ APP_URL=http://localhost:3000
 **Railway production:**
 ```
 ALLOWED_ORIGINS=http://localhost:3000,https://*.vercel.app
-SIWE_DOMAIN=your-app.vercel.app
-APP_URL=https://your-app.vercel.app
+SIWE_DOMAIN=frontend-smoky-eight-51.vercel.app
+APP_URL=https://frontend-smoky-eight-51.vercel.app
 ```
+
+`SIWE_DOMAIN` = hostname frontend (không `https://`). MetaMask so sánh với URL trình duyệt — nếu backend trả `railway.app` mà user mở `vercel.app` sẽ cảnh báo domain mismatch.
 
 ### B.6 Sau redeploy JobRegistry
 
